@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Public Display — MAGCOOP DAVAO</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { primary: '#2563eb', dark: '#0f172a', accent: '#f59e0b', success: '#10b981' }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0f172a; color: white; font-family: 'Inter', sans-serif; }
+    .name-big { 
+      font-size: clamp(3rem, 12vw, 7rem); 
+      font-weight: 800; 
+      line-height: 1; 
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .small-text { font-size: clamp(1rem, 3vw, 1.5rem); }
+    .counter-badge { background: #2563eb; padding: 0.5rem 1.5rem; border-radius: 9999px; font-weight: 700; display: inline-block; }
+    .enable-sound {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(15, 23, 42, 0.95); cursor: pointer;
+    }
+    .enable-sound.hidden { display: none; }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    .qr-box { background: white; border-radius: 12px; padding: 1rem; display: flex; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <div id="soundGate" class="enable-sound">
+    <div class="text-center p-8">
+      <div class="pulse mb-6 text-6xl">🔊</div>
+      <h2 class="text-2xl font-bold mb-3">TAP TO ENABLE SOUND</h2>
+      <p class="text-slate-400 text-lg">Scan QR to join queue</p>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-4 py-6">
+    <header class="text-center mb-8">
+      <h1 class="text-3xl font-bold">MAGCOOP DAVAO — QUEUE DISPLAY</h1>
+      <p class="text-slate-400 mt-2" id="status">Connecting...</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- NOW SERVING -->
+      <div class="lg:col-span-2 bg-slate-800/50 rounded-2xl p-8 border border-slate-700/50 text-center">
+        <p class="text-slate-400 mb-3">NOW SERVING</p>
+        <p class="name-big text-accent" id="bigName">—</p>
+        <p class="small-text text-slate-300 mt-4" id="proceedText">Waiting for next...</p>
+        <p class="mt-2 text-slate-400" id="tokenDisplay"></p>
+        <p class="mt-4">
+          <span class="counter-badge" id="whichCounter">Counter 1</span>
+        </p>
+      </div>
+
+      <!-- NEXT IN QUEUE -->
+      <div class="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-slate-300 mb-4">Next in Queue</h3>
+        <div id="nextList" class="space-y-3">
+          <p class="text-slate-500 text-center py-4">No customers waiting</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ RECENTLY SERVED + QR CODE — SIDE BY SIDE -->
+    <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- RECENTLY SERVED (LEFT) -->
+      <div class="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-slate-300 mb-4">Recently Served</h3>
+        <div id="recentList" class="grid grid-cols-3 gap-3 text-center">
+          <p class="text-slate-500 col-span-full">None yet</p>
+        </div>
+      </div>
+
+      <!-- ✅ QR CODE SECTION (RIGHT) -->
+      <div class="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 text-center">
+        <h3 class="text-lg font-semibold text-slate-300 mb-4">📱 SCAN TO JOIN QUEUE</h3>
+        <div class="qr-box mb-3">
+          <!-- QR Code Generated from your URL -->
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=http%3A%2F%2Flocalhost%2Fqueuing%2FNew%2520folder%2Fjoin-queue.html" 
+               alt="Scan to Join Queue" 
+               class="w-56 h-56 object-contain"
+               onerror="this.style.display='none'; document.getElementById('qrFallback').style.display='block';">
+          <div id="qrFallback" class="hidden text-center text-slate-800">
+            <p class="font-bold">MAGCOOP</p>
+            <p class="text-sm mt-2">Scan QR Code</p>
+            <p class="text-xs mt-1">or visit:</p>
+            <p class="text-xs font-mono mt-1 break-all">localhost/queuing/New folder/join-queue.html</p>
+          </div>
+        </div>
+        <p class="text-sm text-slate-400">Point camera at QR → Enter name → Submit</p>
+        <a href="http://localhost/queuing/New%20folder/join-queue.html" 
+           target="_blank" 
+           class="inline-block mt-3 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+          Open Join Page →
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
+
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let audioUnlocked = false;
+    let lastAnnouncedToken = "";
+    let lastAnnouncedCounter = null;
+    const soundGate = document.getElementById("soundGate");
+
+    async function unlockSound() {
+      if (audioUnlocked) return;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        await ctx.resume();
+      } catch (e) {}
+      audioUnlocked = true;
+      soundGate.classList.add("hidden");
+      speak("Welcome to MAGCOOP Davao. System ready.");
+    }
+
+    soundGate.addEventListener("click", unlockSound);
+    soundGate.addEventListener("touchstart", unlockSound);
+
+    function speak(text) {
+      if (!audioUnlocked) return;
+      window.speechSynthesis.cancel();
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "en-PH";
+        utterance.rate = 0.85;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance);
+      }, 150);
+    }
+
+    async function loadData() {
+      const { data: q } = await sb.from("queue").select("*").order("position", { ascending: true }).limit(5);
+      const { data: s } = await sb.from("calls").select("*").eq("status", "serving").limit(1);
+      const { data: r } = await sb.from("calls").select("*").eq("status", "finished").order("created_at", { ascending: false }).limit(6);
+
+      if (s?.length) {
+        const token = s[0].token;
+        const counterNum = parseInt(s[0].counter, 10) || 1;
+        const name = s[0].name || "Customer";
+        const nameUpper = name.toUpperCase();
+
+        let counterWord;
+        if (counterNum === 1) counterWord = "one";
+        else if (counterNum === 2) counterWord = "two";
+        else counterWord = counterNum.toString();
+
+        document.getElementById("bigName").textContent = nameUpper;
+        document.getElementById("proceedText").textContent = `Please proceed to Counter ${counterNum}.`;
+        document.getElementById("tokenDisplay").textContent = token;
+        document.getElementById("whichCounter").textContent = `Counter ${counterNum}`;
+
+        if (lastAnnouncedToken !== token || lastAnnouncedCounter !== counterNum) {
+          lastAnnouncedToken = token;
+          lastAnnouncedCounter = counterNum;
+          if (audioUnlocked) {
+            speak(`${name}. Please proceed to Counter ${counterWord}. Thank you.`);
+          }
+        }
+      } else {
+        document.getElementById("bigName").textContent = "—";
+        document.getElementById("proceedText").textContent = "Waiting for next customer...";
+        document.getElementById("tokenDisplay").textContent = "";
+        document.getElementById("whichCounter").textContent = "Counter 1";
+        lastAnnouncedToken = "";
+        lastAnnouncedCounter = null;
+      }
+
+      const nextList = document.getElementById("nextList");
+      if (q?.length) {
+        nextList.innerHTML = q.map((c, i) => `
+          <div class="bg-slate-700/40 rounded-lg p-3 ${i === 0 ? "border-2 border-amber-400/50" : ""}">
+            <span class="text-xl font-bold">${c.token}</span>
+            <span class="text-slate-300 ml-2 text-sm">${(c.name || "").toUpperCase()}</span>
+          </div>
+        `).join("");
+      } else {
+        nextList.innerHTML = '<p class="text-slate-500 text-center py-4">No customers waiting</p>';
+      }
+
+      const recentList = document.getElementById("recentList");
+      if (r?.length) {
+        recentList.innerHTML = r.map(c => `
+          <div class="bg-slate-700/30 rounded-lg p-2">
+            <p class="font-bold text-slate-400">${c.token}</p>
+          </div>
+        `).join("");
+      } else {
+        recentList.innerHTML = '<p class="text-slate-500 col-span-full">None yet</p>';
+      }
+    }
+
+    sb.channel("display")
+      .on("postgres_changes", { event: "*", schema: "public", table: "queue" }, loadData)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "calls" }, loadData)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "calls" }, loadData)
+      .subscribe();
+
+    setInterval(loadData, 1000);
+
+    (async () => {
+      try {
+        await sb.from("queue").select("*").limit(1);
+        document.getElementById("status").textContent = "🟢 LIVE — QR Ready";
+        document.getElementById("status").style.color = "#86efac";
+      } catch (e) {
+        document.getElementById("status").textContent = "🔴 Connection error: " + e.message;
+        document.getElementById("status").style.color = "#fca5a5";
+      }
+      loadData();
+    })();
+  </script>
+</body>
+</html>
