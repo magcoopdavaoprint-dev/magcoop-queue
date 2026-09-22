@@ -23,10 +23,7 @@
       50% { transform: scale(1.03); box-shadow: 0 0 20px 10px rgba(139, 92, 246, 0.2); }
       100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
     }
-    /* Highlight newly added row */
-    .queue-row-new {
-      animation: highlightFade 2s ease;
-    }
+    .queue-row-new { animation: highlightFade 2s ease; }
     @keyframes highlightFade {
       0% { background-color: #fef3c7; }
       100% { background-color: transparent; }
@@ -47,7 +44,6 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Loan Queue List -->
       <div class="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">📋 Loan Queue List</h3>
         <table class="w-full text-sm">
@@ -65,7 +61,6 @@
         </table>
       </div>
 
-      <!-- Controls -->
       <div class="bg-white rounded-2xl shadow-xl p-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">⚙️ Loan Controls</h3>
         <p class="text-xs text-indigo-500 mb-1">WAITING</p>
@@ -87,7 +82,6 @@
     </div>
   </div>
 
-  <!-- Add Loan Modal -->
   <div id="addLoanModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
       <h3 class="text-lg font-bold mb-4">Add Loan Applicant</h3>
@@ -124,7 +118,6 @@
     const saveLoanBtn = document.getElementById('saveLoanBtn');
     const connStatus = document.getElementById('connStatus');
 
-    // Connection status
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
@@ -136,7 +129,6 @@
       }
     })();
 
-    // Modal
     addLoanBtn.addEventListener('click', () => {
       addLoanModal.classList.remove('hidden');
       addLoanModal.classList.add('flex');
@@ -216,15 +208,22 @@
       });
     }
 
-    // ✅ CALL NEXT — REMOVES AUTOMATICALLY INSTANTLY
+    // ✅ FIXED: CALL NEXT — REMOVE FROM LIST INSTANTLY
     callNextBtn.addEventListener('click', async () => {
       if (loanQueue.length === 0) { alert('No loan customers in queue!'); return; }
+      
+      // Take the first person from LOCAL list first (fast UI update)
       const next = loanQueue[0];
-
-      // 1. Clear previous from calls table
+      
+      // 🟢 IMMEDIATELY remove from local list — user sees it gone instantly
+      loanQueue.shift();
+      waitingCountEl.textContent = loanQueue.length;
+      renderLoanQueue();
+      callNextBtn.disabled = loanQueue.length === 0;
+      
+      // Send to Public Display
       await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
       
-      // 2. Send new to calls table → Public Display shows it
       setTimeout(async () => {
         await sb.from('calls').insert({
           token: next.token,
@@ -235,10 +234,10 @@
         });
       }, 100);
 
-      // 3. Remove from queue table → LIST UPDATES AUTOMATICALLY via real-time
+      // Delete from database in background
       await sb.from('queue').delete().eq('id', next.id);
 
-      // 4. Update local display immediately
+      // Update serving display
       currentServing = next;
       currentTokenEl.textContent = next.token;
       currentNameEl.textContent = next.name.toUpperCase();
@@ -246,7 +245,6 @@
       setTimeout(() => servingCard.classList.remove('calling'), 3000);
     });
 
-    // Clear Display
     clearDisplayBtn.addEventListener('click', async () => {
       if (!confirm('Clear current display on TV?')) return;
       await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
@@ -256,7 +254,6 @@
       alert('✅ Display Cleared');
     });
 
-    // Full Reset
     resetLoanBtn.addEventListener('click', async () => {
       if (!confirm('⚠️ RESET ALL LOAN DATA?\n\nClear queue + clear display\nNext = MAG-1')) return;
       await sb.from('queue').delete().eq('service', 'MAGCOOP Loan');
@@ -268,7 +265,7 @@
       alert('✅ Reset Complete — Next will be MAG-1');
     });
 
-    // 🔴 LIVE REAL-TIME SUBSCRIPTION — Everything updates instantly
+    // 🔴 LIVE REAL-TIME — catches new additions from join form
     sb.channel('loan-queue-live')
       .on('postgres_changes', { 
         event: '*', 
@@ -276,7 +273,7 @@
         table: 'queue', 
         filter: 'service=eq.MAGCOOP Loan' 
       }, () => {
-        loadLoanQueue(); // New added → appears instantly | Called → removed instantly
+        loadLoanQueue();
       })
       .subscribe();
   </script>
