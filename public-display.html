@@ -25,35 +25,39 @@
     .qr-box { background: white; border-radius: 12px; padding: 0.8rem; display: flex; align-items: center; justify-content: center; }
     .click-hint { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,0.95); cursor: pointer; }
     .click-hint.hidden { display: none; }
-    .datetime-display { font-size: clamp(1.8rem, 6vw, 3.2rem); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .datetime-display { 
+      font-size: clamp(1.8rem, 6vw, 3.2rem); 
+      font-weight: 800; 
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
     .date-text { font-size: clamp(0.9rem, 2.5vw, 1.2rem); color: #94a3b8; }
     .more-indicator { font-size: 0.8rem; color: #64748b; font-style: italic; }
     .queue-item { padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: rgba(51,65,85,0.4); }
+    /* Aligned bottom sections — equal height & alignment */
     .bottom-section { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; height: 100%; }
     .section-heading { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.75rem; text-align: center; }
-    .status-ok { color: #86efac; }
-    .status-wait { color: #fbbf24; }
   </style>
 </head>
 <body class="h-screen flex flex-col">
-  <!-- 🔊 UNLOCK SCREEN -->
+  <!-- 🔊 CLICK FIRST — BEFORE CASTING -->
   <div id="clickHint" class="click-hint">
     <div class="text-center p-6">
       <div class="pulse mb-4 text-5xl">🔊</div>
-      <h2 class="text-xl font-bold mb-2">👆 CLICK HERE ONCE</h2>
-      <p class="text-amber-400 font-semibold mb-1">To Turn On Voice Announcements</p>
-      <p class="text-slate-400 text-sm">Sound plays from your computer speakers</p>
+      <h2 class="text-xl font-bold mb-2">👆 CLICK HERE ONCE FIRST</h2>
+      <p class="text-amber-400 font-semibold mb-1">Before Casting to TV</p>
+      <p class="text-slate-400 text-sm">Sound plays from your phone/laptop speakers</p>
     </div>
   </div>
-
+  <!-- HEADER — COMPACT -->
   <header class="py-3 px-4 text-center shrink-0">
     <h1 class="text-2xl font-bold">MAGCOOP DAVAO — QUEUE DISPLAY</h1>
     <p class="text-slate-400 text-sm mt-1" id="status">Connecting...</p>
-    <p class="text-xs mt-1" id="voiceStatus" class="status-wait">🔇 Waiting for click...</p>
+    <p class="text-xs mt-1" id="voiceStatus">Waiting for click...</p>
   </header>
-
+  <!-- MAIN — PERFECTLY ALIGNED QUADRANTS -->
   <main class="flex-1 grid grid-cols-1 lg:grid-cols-2 lg:grid-rows-2 gap-0 min-h-0">
-    <!-- NOW SERVING -->
+    <!-- TOP LEFT: NOW SERVING -->
     <section class="bottom-section border-b lg:border-b-0 lg:border-r border-slate-700/50">
       <p class="text-slate-400 mb-2">NOW SERVING</p>
       <p class="name-big text-accent" id="bigName">—</p>
@@ -61,23 +65,20 @@
       <p class="mt-1 text-slate-400" id="tokenDisplay"></p>
       <p class="mt-2"><span class="counter-badge" id="whichCounter">Counter 1</span></p>
     </section>
-
-    <!-- NEXT IN QUEUE -->
+    <!-- TOP RIGHT: NEXT IN QUEUE — MAX 5 -->
     <section class="bottom-section border-b lg:border-b-0 border-slate-700/50 min-h-0">
       <h3 class="section-heading">NEXT IN QUEUE</h3>
       <div id="nextList" class="space-y-2 flex-1 overflow-hidden w-full">
         <p class="text-slate-500 text-center py-3">No customers waiting</p>
       </div>
     </section>
-
-    <!-- DATE & TIME -->
+    <!-- BOTTOM LEFT: DATE & TIME -->
     <section class="bottom-section border-r border-slate-700/50">
       <h3 class="section-heading">📅 DATE & TIME</h3>
       <p class="datetime-display text-white" id="timeDisplay">--:--:--</p>
       <p class="date-text mt-1" id="dateDisplay">Loading date...</p>
     </section>
-
-    <!-- QR CODE -->
+    <!-- BOTTOM RIGHT: QR CODE — ALIGNED PERFECTLY WITH DATE -->
     <section class="bottom-section">
       <h3 class="section-heading">📱 SCAN TO JOIN QUEUE</h3>
       <div class="qr-box mb-2">
@@ -90,21 +91,21 @@
       <p class="text-xs text-slate-400 text-center">Point camera at QR → Enter name → Submit</p>
     </section>
   </main>
-
+  <!-- AUDIO PLAYER -->
+  <audio id="audioPlayer" preload="auto">
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
-    let voiceEnabled = false;
-    let voicesReady = false;
+    let audioUnlocked = false;
+    let useSpeech = false;
     let lastAnnouncedToken = "";
     let lastAnnouncedCounter = null;
-    
     const clickHint = document.getElementById("clickHint");
     const voiceStatus = document.getElementById("voiceStatus");
-
-    // === PH TIME ===
+    const audioPlayer = document.getElementById("audioPlayer");
+    // === DATE & TIME — PH TIME ===
     function updateDateTime() {
       const now = new Date();
       const optTime = { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true, timeZone:'Asia/Manila' };
@@ -114,93 +115,58 @@
     }
     updateDateTime();
     setInterval(updateDateTime, 1000);
-
-    // === PRELOAD VOICES ===
-    if ('speechSynthesis' in window) {
-      speechSynthesis.onvoiceschanged = () => {
-        voicesReady = speechSynthesis.getVoices().length > 0;
-        console.log("Voices loaded:", voicesReady);
-      };
-      // Force load voices
-      speechSynthesis.getVoices();
-    }
-
-    // === UNLOCK VOICE — FIRST CLICK ===
-    function enableVoice() {
-      if (voiceEnabled) return;
-      
-      voiceEnabled = true;
+    // === UNLOCK AUDIO ===
+    function enableAudio() {
+      if (audioUnlocked) return;
+      audioUnlocked = true;
       clickHint.classList.add("hidden");
-      
-      if (!('speechSynthesis' in window)) {
-        voiceStatus.textContent = "❌ Browser does not support voice";
-        voiceStatus.style.color = "#fca5a5";
-        return;
-      }
-      
-      voiceStatus.textContent = "✅ VOICE READY — Check volume!";
-      voiceStatus.style.color = "#86efac";
-      
-      // Wait for voices then speak welcome
-      function trySpeakWelcome() {
-        if (voicesReady || speechSynthesis.getVoices().length > 0) {
-          voicesReady = true;
-          speak("System ready. Announcements are active.");
+      try {
+        if (window.speechSynthesis && window.speechSynthesis.getVoices().length > 0) {
+          useSpeech = true;
+          voiceStatus.textContent = "✅ Voice Ready";
+          voiceStatus.style.color = "#86efac";
         } else {
-          setTimeout(trySpeakWelcome, 200);
+          useSpeech = false;
+          voiceStatus.textContent = "✅ Audio Ready (Direct)";
+          voiceStatus.style.color = "#86efac";
         }
+      } catch {
+        useSpeech = false;
+        voiceStatus.textContent = "✅ Audio Ready (Direct)";
+        voiceStatus.style.color = "#86efac";
       }
-      trySpeakWelcome();
+      // Unlock audio
+      const silent = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhBAAEAgAAAAQAACBAAAgIAAAAAAAgIAAAAAAAACIgAICIA/8gAABAg/+P/6DwEBAP/+/w==");
+      silent.volume = 0;
+      silent.play().catch(()=>{});
+      setTimeout(() => speak("System ready. Announcements enabled."), 300);
     }
-    
-    clickHint.addEventListener("click", enableVoice);
-    clickHint.addEventListener("touchstart", enableVoice);
-    clickHint.addEventListener("mousedown", enableVoice);
-
-    // === SPEAK — ONLY BUILT-IN VOICE, NO EXTERNAL LINKS ===
+    clickHint.addEventListener("click", enableAudio);
+    clickHint.addEventListener("touchstart", enableAudio);
+    clickHint.addEventListener("mousedown", enableAudio);
+    clickHint.addEventListener("keydown", e => { if (e.key==='Enter'||e.key===' ') enableAudio(); });
+    // === SPEAK — DUAL SYSTEM ===
     function speak(text) {
-      if (!voiceEnabled) return;
-      if (!('speechSynthesis' in window)) return;
-      
-      // Stop any previous speech
-      speechSynthesis.cancel();
-      
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
-      utterance.rate = 0.85;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-      
-      // Pick a clear English voice
-      const voices = speechSynthesis.getVoices();
-      const preferredVoice = voices.find(v => 
-        v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en-')
-      );
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
+      if (!audioUnlocked) return;
+      if (useSpeech && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+          const utt = new SpeechSynthesisUtterance(text);
+          utt.lang = "en-PH"; utt.rate = 0.85; utt.volume = 1;
+          utt.onerror = () => { useSpeech = false; speak(text); };
+          window.speechSynthesis.speak(utt);
+          return;
+        } catch { useSpeech = false; }
       }
-      
-      utterance.onstart = () => {
-        console.log("🔊 Speaking:", text);
-        voiceStatus.textContent = "🔊 Speaking...";
-        voiceStatus.style.color = "#86efac";
-      };
-      
-      utterance.onend = () => {
-        voiceStatus.textContent = "✅ Voice Ready";
-        voiceStatus.style.color = "#86efac";
-      };
-      
-      utterance.onerror = (e) => {
-        console.error("Voice error:", e);
-        voiceStatus.textContent = "⚠️ Voice error — Refresh page";
-        voiceStatus.style.color = "#fca5a5";
-      };
-      
-      speechSynthesis.speak(utterance);
+      // Direct MP3 fallback — works on cast/TV
+      try {
+        audioPlayer.pause();
+        audioPlayer.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en-PH&client=tw-ob`;
+        audioPlayer.volume = 1;
+        audioPlayer.play();
+      } catch (e) { console.log("Audio failed:", e); }
     }
-
-    // === LOAD QUEUE DATA ===
+    // === LOAD QUEUE ===
     async function loadData() {
       const { data: q } = await sb.from("queue").select("*").order("position", { ascending: true }).limit(10);
       const { data: s } = await sb.from("calls").select("*").eq("status", "serving").limit(1);
@@ -210,18 +176,16 @@
         const counterNum = parseInt(s[0].counter, 10) || 1;
         const name = s[0].name || "Customer";
         const nameUpper = name.toUpperCase();
+        const counterWord = counterNum === 1 ? "one" : counterNum === 2 ? "two" : counterNum.toString();
         
         document.getElementById("bigName").textContent = nameUpper;
         document.getElementById("proceedText").textContent = `Proceed to Counter ${counterNum}`;
         document.getElementById("tokenDisplay").textContent = token;
         document.getElementById("whichCounter").textContent = `Counter ${counterNum}`;
         
-        // Announce ONLY when NEW token/counter
         if (lastAnnouncedToken !== token || lastAnnouncedCounter !== counterNum) {
           lastAnnouncedToken = token;
           lastAnnouncedCounter = counterNum;
-          
-          const counterWord = counterNum === 1 ? "one" : counterNum === 2 ? "two" : counterNum.toString();
           speak(`${name}. Please proceed to Counter ${counterWord}. Thank you.`);
         }
       } else {
@@ -233,7 +197,7 @@
         lastAnnouncedCounter = null;
       }
       
-      // Next in queue list
+      // SHOW ONLY 5 — COMPACT
       const nextList = document.getElementById("nextList");
       if (q?.length) {
         const showFirst5 = q.slice(0, 5);
@@ -247,17 +211,12 @@
         nextList.innerHTML = '<p class="text-slate-500 text-center py-3">No customers waiting</p>';
       }
     }
-
-    // Realtime updates
     sb.channel("display")
       .on("postgres_changes", { event:"*", schema:"public", table:"queue" }, loadData)
       .on("postgres_changes", { event:"INSERT", schema:"public", table:"calls" }, loadData)
       .on("postgres_changes", { event:"UPDATE", schema:"public", table:"calls" }, loadData)
       .subscribe();
-    
-    setInterval(loadData, 1500);
-
-    // Connection status
+    setInterval(loadData, 1000);
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
