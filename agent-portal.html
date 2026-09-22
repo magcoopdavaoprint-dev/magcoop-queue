@@ -30,6 +30,8 @@
     .modal-overlay.active { display: flex; }
     .counter-btn { transition: all 0.2s ease; }
     .counter-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+    .served-item { border-bottom: 1px solid #f1f5f9; padding: 6px 0; }
+    .served-item:last-child { border-bottom: none; }
   </style>
 </head>
 <body class="text-slate-800 min-h-screen p-6">
@@ -39,9 +41,12 @@
       <p class="text-sm mt-1" id="connStatus">Checking connection...</p>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-12 gap-5 mb-6">
+      <!-- ✅ UPDATED: RECENTLY SERVED -->
       <div class="md:col-span-4 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-        <p class="text-sm text-slate-500"><i class="fa-regular fa-calendar-check"></i> Today's Appointments</p>
-        <p class="text-slate-400 text-sm py-6 text-center">None</p>
+        <p class="text-sm text-slate-500 mb-3"><i class="fa-regular fa-clock"></i> Recently Served</p>
+        <div id="recentlyServedList" class="max-h-48 overflow-y-auto">
+          <p class="text-slate-400 text-sm py-4 text-center">No one served yet</p>
+        </div>
       </div>
       <div class="md:col-span-4 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
         <h3 class="font-semibold text-slate-700 mb-4">Quick Stats</h3>
@@ -67,7 +72,6 @@
         <h3 class="font-semibold text-lg mb-2">Counter Selection</h3>
         <p class="text-sm text-slate-500 mb-4">Choose where customer goes</p>
         
-        <!-- Counter Selection -->
         <div class="grid grid-cols-2 gap-3 mb-4">
           <button id="btnCounter1" class="counter-btn active py-3 rounded-lg font-semibold border-2 border-blue-600">
             Counter 1
@@ -76,7 +80,6 @@
             Counter 2
           </button>
         </div>
-
         <div class="bg-slate-50 rounded-lg p-4 mb-4">
           <p class="text-xs text-slate-400 uppercase mb-2">Currently Serving</p>
           <p class="text-lg font-semibold" id="nowServing">None</p>
@@ -84,7 +87,6 @@
         <button id="callNextBtn" class="btn w-full bg-blue-600 text-white py-3 rounded-lg font-semibold text-lg mb-3" disabled>
           <i class="fa-solid fa-arrow-right"></i> CALL NEXT CUSTOMER
         </button>
-        <!-- ✅ RESET BUTTON -->
         <button id="resetBtn" class="btn w-full bg-red-50 text-red-600 border border-red-200 py-3 rounded-lg font-semibold">
           <i class="fa-solid fa-rotate-left"></i> RESET QUEUE — Start from MAG-1
         </button>
@@ -105,7 +107,6 @@
       </div>
     </div>
   </div>
-
   <div id="addModal" class="modal-overlay">
     <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
       <h3 class="text-lg font-bold mb-4">Add New Customer</h3>
@@ -125,14 +126,13 @@
       <p id="modalNote" class="mt-3 text-sm"></p>
     </div>
   </div>
-
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
     let selectedCounter = 1;
-
+    let tokenOffset = 0;
+    
     const modal = document.getElementById("addModal");
     function openModal() {
       modal.classList.add("active");
@@ -141,17 +141,15 @@
       setTimeout(() => document.getElementById("inpName").focus(), 50);
     }
     function closeModal() { modal.classList.remove("active"); }
-
     document.getElementById("addCustomerBtn").addEventListener("click", openModal);
     document.getElementById("btnCancel").addEventListener("click", closeModal);
     document.getElementById("btnSave").addEventListener("click", saveCustomer);
     document.getElementById("clearBtn").addEventListener("click", clearAll);
-    document.getElementById("resetBtn").addEventListener("click", resetQueue); // ✅ Reset
+    document.getElementById("resetBtn").addEventListener("click", resetQueue);
 
     // Counter Selection
     const btnCounter1 = document.getElementById("btnCounter1");
     const btnCounter2 = document.getElementById("btnCounter2");
-
     function selectCounter(num) {
       selectedCounter = num;
       if (num === 1) {
@@ -166,12 +164,10 @@
         btnCounter1.classList.add("bg-slate-50", "border-slate-200");
       }
     }
-
     btnCounter1.addEventListener("click", () => selectCounter(1));
     btnCounter2.addEventListener("click", () => selectCounter(2));
 
-    // ✅ Get Next Token — starts from 1 after reset
-    let tokenOffset = 0; // Track reset point
+    // Get Next Token
     async function getNextToken() {
       const { data: q } = await sb.from("queue").select("token");
       const { data: c } = await sb.from("calls").select("token");
@@ -183,9 +179,8 @@
         if (!isNaN(num) && num > max) max = num;
       });
       
-      // If reset, start fresh from MAG-1
       const nextNum = tokenOffset > 0 ? tokenOffset : (max + 1);
-      if (tokenOffset > 0) tokenOffset = 0; // Reset after first new token
+      if (tokenOffset > 0) tokenOffset = 0;
       
       return `MAG-${nextNum}`;
     }
@@ -220,10 +215,10 @@
       }
     }
 
-    // Call Next — sends to selected counter
+    // Call Next — moves previous to finished
     document.getElementById("callNextBtn").addEventListener("click", async () => {
       try {
-        // Mark previous as finished
+        // Mark current as finished
         const { data: currentServing } = await sb
           .from("calls")
           .select("id")
@@ -236,7 +231,6 @@
             .update({ status: "finished" })
             .eq("id", currentServing[0].id);
         }
-
         // Get next from queue
         const { data: nextInQueue, error: queueErr } = await sb
           .from("queue")
@@ -249,7 +243,6 @@
           alert("No customers in queue!");
           return;
         }
-
         const nextPerson = nextInQueue[0];
         await sb.from("queue").delete().eq("id", nextPerson.id);
         
@@ -261,7 +254,6 @@
           counter: selectedCounter,
           status: "serving"
         });
-
         if (insertErr) {
           alert("Database Error: " + insertErr.message);
           return;
@@ -271,20 +263,15 @@
       }
     });
 
-    // ✅ RESET FUNCTION — Clear everything → Next = MAG-1
+    // Reset Queue
     async function resetQueue() {
       if (!confirm("⚠️ RESET ALL?\n\nClear queue + history → Start from MAG-1 again.\nThis cannot be undone!")) {
         return;
       }
-      
       try {
-        // Clear queue and all call history
         await sb.from("queue").delete().neq("id", 0);
         await sb.from("calls").delete().neq("id", 0);
-        
-        // Set next token to MAG-1
         tokenOffset = 1;
-        
         alert("✅ Queue Reset Complete!\n\nNext customer = MAG-1");
         load();
       } catch (err) {
@@ -292,14 +279,23 @@
       }
     }
 
-    // Load & Render
+    // ✅ Load & Render — includes Recently Served
     async function load() {
       const { data: q } = await sb.from("queue").select("*").order("position");
       const { data: s } = await sb.from("calls").select("*").eq("status","serving").limit(1);
+      // Get last 5 finished — newest first
+      const { data: finished } = await sb
+        .from("calls")
+        .select("*")
+        .eq("status","finished")
+        .order("id", { ascending: false })
+        .limit(5);
       
+      // Waiting count & button
       document.getElementById("waitingCount").textContent = q?.length || 0;
       document.getElementById("callNextBtn").disabled = !q?.length;
       
+      // Queue list
       const body = document.getElementById("queueBody");
       body.innerHTML = "";
       if (q && q.length > 0) {
@@ -315,10 +311,24 @@
         });
       }
       
+      // Now Serving
       if (s?.length) {
         document.getElementById("nowServing").textContent = `${s[0].token} — ${s[0].name}`;
       } else {
         document.getElementById("nowServing").textContent = "None";
+      }
+      
+      // ✅ Recently Served List
+      const servedList = document.getElementById("recentlyServedList");
+      if (finished && finished.length > 0) {
+        servedList.innerHTML = finished.map(row => `
+          <div class="served-item">
+            <p class="font-semibold text-sm">${row.token}</p>
+            <p class="text-xs text-slate-500">${row.name} · Counter ${row.counter}</p>
+          </div>
+        `).join("");
+      } else {
+        servedList.innerHTML = '<p class="text-slate-400 text-sm py-4 text-center">No one served yet</p>';
       }
     }
 
@@ -327,6 +337,7 @@
       await sb.from("queue").delete().neq("id", 0);
     }
 
+    // Realtime updates
     sb.channel("q")
       .on("postgres_changes", { event: "*", schema: "public", table: "queue" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "calls" }, load)
