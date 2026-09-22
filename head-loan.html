@@ -65,14 +65,8 @@
         <button id="addLoanBtn" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-3 rounded-xl mb-4">
           ➕ Add Loan Applicant
         </button>
-        <button id="callNextBtn" class="w-full bg-magcoop-loan hover:bg-magcoop-loandark text-white text-lg font-bold py-4 rounded-xl transition mb-4">
+        <button id="callNextBtn" class="w-full bg-magcoop-loan hover:bg-magcoop-loandark text-white text-lg font-bold py-4 rounded-xl transition mb-6">
           📢 CALL NEXT LOAN
-        </button>
-        <button id="recallBtn" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium py-3 rounded-xl transition mb-4">
-          🔁 RECALL CURRENT
-        </button>
-        <button id="completeBtn" class="w-full bg-green-50 hover:bg-green-100 text-green-700 font-medium py-3 rounded-xl transition mb-6">
-          ✅ MARK AS SERVED
         </button>
         <button id="resetLoanBtn" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 rounded-xl transition text-sm">
           🗑️ Clear Loan Queue Only
@@ -110,8 +104,6 @@
     const loanQueueBody = document.getElementById('loanQueueBody');
     const waitingCountEl = document.getElementById('waitingCount');
     const callNextBtn = document.getElementById('callNextBtn');
-    const recallBtn = document.getElementById('recallBtn');
-    const completeBtn = document.getElementById('completeBtn');
     const resetLoanBtn = document.getElementById('resetLoanBtn');
     const servingCard = document.getElementById('servingCard');
     const addLoanBtn = document.getElementById('addLoanBtn');
@@ -224,33 +216,13 @@
       loadLoanQueue();
     });
 
-    recallBtn.addEventListener('click', async () => {
-      if (!currentServing) return;
-      await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
-      setTimeout(async () => {
-        await sb.from('calls').insert({
-          token: currentServing.token,
-          name: currentServing.name,
-          service: 'MAGCOOP Loan',
-          counter: 2,
-          status: 'serving'
-        });
-      }, 50);
-      servingCard.classList.add('calling');
-      setTimeout(() => servingCard.classList.remove('calling'), 3000);
-    });
-
-    completeBtn.addEventListener('click', async () => {
-      if (!currentServing) return;
+    resetLoanBtn.addEventListener('click', async () => {
+      if (!confirm('Clear ALL loan entries?')) return;
+      await sb.from('queue').delete().eq('service', 'MAGCOOP Loan');
       await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
       currentServing = null;
       currentTokenEl.textContent = '—';
       currentNameEl.textContent = 'Waiting for next loan...';
-    });
-
-    resetLoanBtn.addEventListener('click', async () => {
-      if (!confirm('Clear ALL loan entries?')) return;
-      await sb.from('queue').delete().eq('service', 'MAGCOOP Loan');
       tokenOffset = 0;
       loadLoanQueue();
     });
