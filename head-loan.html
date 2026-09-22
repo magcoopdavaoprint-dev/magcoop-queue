@@ -30,6 +30,7 @@
     <div class="text-center mb-8">
       <h1 class="text-4xl font-bold text-white mb-2">💰 MAGCOOP — LOAN COUNTER</h1>
       <p class="text-indigo-200">Davao Branch · Loan Processing Only</p>
+      <p class="text-sm mt-2" id="connStatus">Checking connection...</p>
     </div>
 
     <div class="bg-white rounded-3xl shadow-2xl p-8 mb-8 text-center" id="servingCard">
@@ -65,11 +66,14 @@
         <button id="addLoanBtn" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-3 rounded-xl mb-4">
           ➕ Add Loan Applicant
         </button>
-        <button id="callNextBtn" class="w-full bg-magcoop-loan hover:bg-magcoop-loandark text-white text-lg font-bold py-4 rounded-xl transition mb-6">
+        <button id="callNextBtn" class="w-full bg-magcoop-loan hover:bg-magcoop-loandark text-white text-lg font-bold py-4 rounded-xl transition mb-4">
           📢 CALL NEXT LOAN
         </button>
+        <button id="clearDisplayBtn" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium py-3 rounded-xl transition mb-4">
+          🔄 CLEAR CURRENT DISPLAY
+        </button>
         <button id="resetLoanBtn" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 rounded-xl transition text-sm">
-          🗑️ Clear Loan Queue Only
+          🗑️ Reset All Loan Queue
         </button>
       </div>
     </div>
@@ -101,6 +105,7 @@
     const loanQueueBody = document.getElementById('loanQueueBody');
     const waitingCountEl = document.getElementById('waitingCount');
     const callNextBtn = document.getElementById('callNextBtn');
+    const clearDisplayBtn = document.getElementById('clearDisplayBtn');
     const resetLoanBtn = document.getElementById('resetLoanBtn');
     const servingCard = document.getElementById('servingCard');
     const addLoanBtn = document.getElementById('addLoanBtn');
@@ -108,6 +113,19 @@
     const loanNameInput = document.getElementById('loanName');
     const cancelLoanBtn = document.getElementById('cancelLoanBtn');
     const saveLoanBtn = document.getElementById('saveLoanBtn');
+    const connStatus = document.getElementById('connStatus');
+
+    // Check connection
+    (async () => {
+      try {
+        await sb.from("queue").select("*").limit(1);
+        connStatus.textContent = "✅ ONLINE LIVE — Connected";
+        connStatus.style.color = "#86efac";
+      } catch (e) {
+        connStatus.textContent = "❌ OFFLINE — Check Internet";
+        connStatus.style.color = "#fca5a5";
+      }
+    })();
 
     // Modal
     addLoanBtn.addEventListener('click', () => {
@@ -124,7 +142,7 @@
       const name = loanNameInput.value.trim();
       if (!name) return alert('Enter name');
       
-      // Get next loan token
+      // Get next loan token — separate sequence
       const [{ data: q }, { data: c }] = await Promise.all([
         sb.from("queue").select("token").eq("service", "MAGCOOP Loan"),
         sb.from("calls").select("token").eq("service", "MAGCOOP Loan")
@@ -174,20 +192,21 @@
         </tr>
       `).join('');
       document.querySelectorAll('.remove-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
           if(confirm('Remove this loan applicant?')) {
-            sb.from('queue').delete().eq('id', btn.dataset.id).then(loadLoanQueue);
+            await sb.from('queue').delete().eq('id', btn.dataset.id);
+            loadLoanQueue();
           }
         });
       });
     }
 
-    // Call Next Loan — triggers Public Display
+    // Call Next Loan → Public Display announces automatically
     callNextBtn.addEventListener('click', async () => {
       if (loanQueue.length === 0) { alert('No loan customers in queue!'); return; }
       const next = loanQueue[0];
 
-      // Clear previous loan → fresh INSERT = guaranteed announcement
+      // Clear previous → fresh INSERT = guaranteed announcement
       await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
       
       setTimeout(async () => {
@@ -198,7 +217,7 @@
           counter: 2,
           status: 'serving'
         });
-      }, 50);
+      }, 100);
 
       // Remove from queue
       await sb.from('queue').delete().eq('id', next.id);
@@ -213,15 +232,27 @@
       loadLoanQueue();
     });
 
+    // ✅ CLEAR CURRENT DISPLAY — removes name from TV instantly
+    clearDisplayBtn.addEventListener('click', async () => {
+      if (!confirm('Clear current display on TV?')) return;
+      await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
+      currentServing = null;
+      currentTokenEl.textContent = '—';
+      currentNameEl.textContent = 'Waiting for next loan...';
+      alert('✅ Display Cleared');
+    });
+
+    // ✅ FULL RESET — clears everything
     resetLoanBtn.addEventListener('click', async () => {
-      if (!confirm('Clear ALL loan entries?')) return;
+      if (!confirm('⚠️ RESET ALL LOAN DATA?\n\nClear queue + clear display\nNext = MAG-1')) return;
       await sb.from('queue').delete().eq('service', 'MAGCOOP Loan');
       await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
       currentServing = null;
       currentTokenEl.textContent = '—';
       currentNameEl.textContent = 'Waiting for next loan...';
-      tokenOffset = 0;
+      tokenOffset = 1;
       loadLoanQueue();
+      alert('✅ Reset Complete — Next will be MAG-1');
     });
   </script>
 </body>
