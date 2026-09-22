@@ -4,155 +4,189 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Public Display — MAGCOOP DAVAO</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com/3.4.1"></script>
-  <!-- Supabase JS — FIXED URL -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          colors: {
-            primary: '#2563eb',
-            dark: '#0f172a',
-            accent: '#f59e0b',
-            success: '#10b981'
-          }
-        }
+          colors: { primary: '#2563eb', dark: '#0f172a', accent: '#f59e0b', success: '#10b981' },
+        },
       }
     }
   </script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-    body {
-      background: #0f172a;
-      color: white;
-      font-family: 'Inter', sans-serif;
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    body { background: #0f172a; color: white; font-family: 'Inter', sans-serif; }
+    .name-big { font-size: clamp(2.5rem, 9vw, 5rem); font-weight: 800; line-height: 1; text-transform: uppercase; letter-spacing: 0.05em; }
+    .counter-badge { background: #2563eb; padding: 0.4rem 1.2rem; border-radius: 9999px; font-weight: 700; display: inline-block; font-size: 1.1rem; }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    .qr-box { background: white; border-radius: 12px; padding: 0.8rem; display: flex; align-items: center; justify-content: center; }
+    .click-hint { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,0.95); cursor: pointer; }
+    .click-hint.hidden { display: none; }
+    .datetime-display { 
+      font-size: clamp(1.8rem, 6vw, 3.2rem); 
+      font-weight: 800; 
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
     }
-    .name-big {
-      font-size: clamp(2.5rem, 10vw, 6rem);
-      font-weight: 800;
-      line-height: 1;
-      text-transform: uppercase;
-    }
+    .date-text { font-size: clamp(0.9rem, 2.5vw, 1.2rem); color: #94a3b8; }
+    .more-indicator { font-size: 0.8rem; color: #64748b; font-style: italic; }
+    .queue-item { padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: rgba(51,65,85,0.4); }
+    /* Aligned bottom sections — equal height & alignment */
+    .bottom-section { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; height: 100%; }
+    .section-heading { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.75rem; text-align: center; }
   </style>
 </head>
-<body class="min-h-screen">
-
-  <div id="soundGate" class="enable-sound">
-    <div class="text-center p-8">
-      <div class="pulse mb-6 text-6xl">🔊</div>
-      <h2 class="text-2xl font-bold mb-3">TAP TO ENABLE SOUND</h2>
-      <p class="text-slate-400 text-lg">Scan QR to join queue</p>
+<body class="h-screen flex flex-col">
+  <!-- 🔊 CLICK FIRST — BEFORE CASTING -->
+  <div id="clickHint" class="click-hint">
+    <div class="text-center p-6">
+      <div class="pulse mb-4 text-5xl">🔊</div>
+      <h2 class="text-xl font-bold mb-2">👆 CLICK HERE ONCE FIRST</h2>
+      <p class="text-amber-400 font-semibold mb-1">Before Casting to TV</p>
+      <p class="text-slate-400 text-sm">Sound plays from your phone/laptop speakers</p>
     </div>
   </div>
-
-  <div class="container mx-auto px-4 py-6">
-    <header class="text-center mb-8">
-      <h1 class="text-3xl font-bold">MAGCOOP DAVAO — QUEUE DISPLAY</h1>
-      <p class="text-slate-400 mt-2" id="status">Connecting...</p>
-    </header>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- NOW SERVING -->
-      <div class="lg:col-span-2 bg-slate-800/50 rounded-2xl p-8 border border-slate-700/50 text-center">
-        <p class="text-slate-400 mb-3">NOW SERVING</p>
-        <p class="name-big text-accent" id="bigName">—</p>
-        <p class="small-text text-slate-300 mt-4" id="proceedText">Waiting for next...</p>
-        <p class="mt-2 text-slate-400" id="tokenDisplay"></p>
-        <p class="mt-4">
-          <span class="counter-badge" id="whichCounter">Counter 1</span>
-        </p>
+  <!-- HEADER — COMPACT -->
+  <header class="py-3 px-4 text-center shrink-0">
+    <h1 class="text-2xl font-bold">MAGCOOP DAVAO — QUEUE DISPLAY</h1>
+    <p class="text-slate-400 text-sm mt-1" id="status">Connecting...</p>
+    <p class="text-xs mt-1" id="voiceStatus">Waiting for click...</p>
+  </header>
+  <!-- MAIN — PERFECTLY ALIGNED QUADRANTS -->
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-2 lg:grid-rows-2 gap-0 min-h-0">
+    <!-- TOP LEFT: NOW SERVING -->
+    <section class="bottom-section border-b lg:border-b-0 lg:border-r border-slate-700/50">
+      <p class="text-slate-400 mb-2">NOW SERVING</p>
+      <p class="name-big text-accent" id="bigName">—</p>
+      <p class="text-slate-300 mt-2 text-center" id="proceedText">Waiting for next...</p>
+      <p class="mt-1 text-slate-400" id="tokenDisplay"></p>
+      <p class="mt-2"><span class="counter-badge" id="whichCounter">Counter 1</span></p>
+    </section>
+    <!-- TOP RIGHT: NEXT IN QUEUE — MAX 5 -->
+    <section class="bottom-section border-b lg:border-b-0 border-slate-700/50 min-h-0">
+      <h3 class="section-heading">NEXT IN QUEUE</h3>
+      <div id="nextList" class="space-y-2 flex-1 overflow-hidden w-full">
+        <p class="text-slate-500 text-center py-3">No customers waiting</p>
       </div>
-
-      <!-- NEXT IN QUEUE -->
-      <div class="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50">
-        <h3 class="text-lg font-semibold text-slate-300 mb-4">Next in Queue</h3>
-        <div id="nextList" class="space-y-3">
-          <p class="text-slate-500 text-center py-4">No customers waiting</p>
-        </div>
+    </section>
+    <!-- BOTTOM LEFT: DATE & TIME -->
+    <section class="bottom-section border-r border-slate-700/50">
+      <h3 class="section-heading">📅 DATE & TIME</h3>
+      <p class="datetime-display text-white" id="timeDisplay">--:--:--</p>
+      <p class="date-text mt-1" id="dateDisplay">Loading date...</p>
+    </section>
+    <!-- BOTTOM RIGHT: QR CODE — ALIGNED PERFECTLY WITH DATE -->
+    <section class="bottom-section">
+      <h3 class="section-heading">📱 SCAN TO JOIN QUEUE</h3>
+      <div class="qr-box mb-2">
+        <img 
+          src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=https%3A%2F%2Fmagcoopdavaoprint-dev.github.io%2Fmagcoop-queue%2Fjoin-queue.html" 
+          alt="Scan to Join Queue" 
+          class="w-52 h-52"
+        />
       </div>
-    </div>
-
-    <!-- QR CODE SECTION — Side by Side -->
-    <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div class="lg:col-start-2 bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 text-center">
-        <h3 class="text-lg font-semibold text-slate-300 mb-4">📱 SCAN TO JOIN QUEUE</h3>
-        <div class="qr-box mb-3 inline-block">
-          <img 
-            src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Fmagcoopdavaoprint-dev.github.io%2Fmagcoop-queue%2Fjoin-queue.html" 
-            alt="Scan to Join Queue" 
-            class="w-56 h-56"
-          />
-        </div>
-        <p class="text-sm text-slate-400">Point camera at QR → Enter name → Submit</p>
-      </div>
-    </div>
-  </div>
-
+      <p class="text-xs text-slate-400 text-center">Point camera at QR → Enter name → Submit</p>
+    </section>
+  </main>
+  <!-- AUDIO PLAYER -->
+  <audio id="audioPlayer" preload="auto">
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
-
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+    
     let audioUnlocked = false;
+    let useSpeech = false;
     let lastAnnouncedToken = "";
     let lastAnnouncedCounter = null;
-    const soundGate = document.getElementById("soundGate");
-
-    async function unlockSound() {
-      if (audioUnlocked) return;
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        await ctx.resume();
-      } catch (e) {}
-      audioUnlocked = true;
-      soundGate.classList.add("hidden");
-      speak("Welcome to MAGCOOP Davao. System ready.");
+    const clickHint = document.getElementById("clickHint");
+    const voiceStatus = document.getElementById("voiceStatus");
+    const audioPlayer = document.getElementById("audioPlayer");
+    // === DATE & TIME — PH TIME ===
+    function updateDateTime() {
+      const now = new Date();
+      const optTime = { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true, timeZone:'Asia/Manila' };
+      const optDate = { weekday:'long', year:'numeric', month:'long', day:'numeric', timeZone:'Asia/Manila' };
+      document.getElementById('timeDisplay').textContent = now.toLocaleTimeString('en-PH', optTime);
+      document.getElementById('dateDisplay').textContent = now.toLocaleDateString('en-PH', optDate);
     }
-
-    soundGate.addEventListener("click", unlockSound);
-    soundGate.addEventListener("touchstart", unlockSound);
-
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+    // === UNLOCK AUDIO ===
+    function enableAudio() {
+      if (audioUnlocked) return;
+      audioUnlocked = true;
+      clickHint.classList.add("hidden");
+      try {
+        if (window.speechSynthesis && window.speechSynthesis.getVoices().length > 0) {
+          useSpeech = true;
+          voiceStatus.textContent = "✅ Voice Ready";
+          voiceStatus.style.color = "#86efac";
+        } else {
+          useSpeech = false;
+          voiceStatus.textContent = "✅ Audio Ready (Direct)";
+          voiceStatus.style.color = "#86efac";
+        }
+      } catch {
+        useSpeech = false;
+        voiceStatus.textContent = "✅ Audio Ready (Direct)";
+        voiceStatus.style.color = "#86efac";
+      }
+      // Unlock audio
+      const silent = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhBAAEAgAAAAQAACBAAAgIAAAAAAAgIAAAAAAAACIgAICIA/8gAABAg/+P/6DwEBAP/+/w==");
+      silent.volume = 0;
+      silent.play().catch(()=>{});
+      setTimeout(() => speak("System ready. Announcements enabled."), 300);
+    }
+    clickHint.addEventListener("click", enableAudio);
+    clickHint.addEventListener("touchstart", enableAudio);
+    clickHint.addEventListener("mousedown", enableAudio);
+    clickHint.addEventListener("keydown", e => { if (e.key==='Enter'||e.key===' ') enableAudio(); });
+    // === SPEAK — DUAL SYSTEM ===
     function speak(text) {
       if (!audioUnlocked) return;
-      window.speechSynthesis.cancel();
-      setTimeout(() => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "en-PH";
-        utterance.rate = 0.85;
-        utterance.volume = 1;
-        window.speechSynthesis.speak(utterance);
-      }, 150);
+      if (useSpeech && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+          const utt = new SpeechSynthesisUtterance(text);
+          utt.lang = "en-PH"; utt.rate = 0.85; utt.volume = 1;
+          utt.onerror = () => { useSpeech = false; speak(text); };
+          window.speechSynthesis.speak(utt);
+          return;
+        } catch { useSpeech = false; }
+      }
+      // Direct MP3 fallback — works on cast/TV
+      try {
+        audioPlayer.pause();
+        audioPlayer.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en-PH&client=tw-ob`;
+        audioPlayer.volume = 1;
+        audioPlayer.play();
+      } catch (e) { console.log("Audio failed:", e); }
     }
-
+    // === LOAD QUEUE ===
     async function loadData() {
-      const { data: q } = await sb.from("queue").select("*").order("position", { ascending: true }).limit(5);
+      const { data: q } = await sb.from("queue").select("*").order("position", { ascending: true }).limit(10);
       const { data: s } = await sb.from("calls").select("*").eq("status", "serving").limit(1);
-
+      
       if (s?.length) {
         const token = s[0].token;
         const counterNum = parseInt(s[0].counter, 10) || 1;
         const name = s[0].name || "Customer";
         const nameUpper = name.toUpperCase();
-
-        let counterWord;
-        if (counterNum === 1) counterWord = "one";
-        else if (counterNum === 2) counterWord = "two";
-        else counterWord = counterNum.toString();
-
+        const counterWord = counterNum === 1 ? "one" : counterNum === 2 ? "two" : counterNum.toString();
+        
         document.getElementById("bigName").textContent = nameUpper;
-        document.getElementById("proceedText").textContent = `Please proceed to Counter ${counterNum}.`;
+        document.getElementById("proceedText").textContent = `Proceed to Counter ${counterNum}`;
         document.getElementById("tokenDisplay").textContent = token;
         document.getElementById("whichCounter").textContent = `Counter ${counterNum}`;
-
+        
         if (lastAnnouncedToken !== token || lastAnnouncedCounter !== counterNum) {
           lastAnnouncedToken = token;
           lastAnnouncedCounter = counterNum;
-          if (audioUnlocked) {
-            speak(`${name}. Please proceed to Counter ${counterWord}. Thank you.`);
-          }
+          speak(`${name}. Please proceed to Counter ${counterWord}. Thank you.`);
         }
       } else {
         document.getElementById("bigName").textContent = "—";
@@ -162,32 +196,31 @@
         lastAnnouncedToken = "";
         lastAnnouncedCounter = null;
       }
-
+      
+      // SHOW ONLY 5 — COMPACT
       const nextList = document.getElementById("nextList");
       if (q?.length) {
-        nextList.innerHTML = q.map((c, i) => `
-          <div class="bg-slate-700/40 rounded-lg p-3 ${i === 0 ? "border-2 border-amber-400/50" : ""}">
-            <span class="text-xl font-bold">${c.token}</span>
-            <span class="text-slate-300 ml-2 text-sm">${(c.name || "").toUpperCase()}</span>
-          </div>
-        `).join("");
+        const showFirst5 = q.slice(0, 5);
+        const hiddenCount = q.length - 5;
+        nextList.innerHTML = showFirst5.map((c, i) => `
+          <div class="queue-item ${i===0?'border-2 border-amber-400/50':''}">
+            <span class="font-bold text-lg">${c.token}</span>
+            <span class="text-slate-300 ml-2 text-sm">${(c.name||"").toUpperCase()}</span>
+          </div>`).join("") + (hiddenCount>0?`<p class="more-indicator text-center mt-1">+${hiddenCount} more in queue</p>`:"");
       } else {
-        nextList.innerHTML = '<p class="text-slate-500 text-center py-4">No customers waiting</p>';
+        nextList.innerHTML = '<p class="text-slate-500 text-center py-3">No customers waiting</p>';
       }
     }
-
     sb.channel("display")
-      .on("postgres_changes", { event: "*", schema: "public", table: "queue" }, loadData)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "calls" }, loadData)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "calls" }, loadData)
+      .on("postgres_changes", { event:"*", schema:"public", table:"queue" }, loadData)
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"calls" }, loadData)
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"calls" }, loadData)
       .subscribe();
-
     setInterval(loadData, 1000);
-
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
-        document.getElementById("status").textContent = "🟢 LIVE";
+        document.getElementById("status").textContent = "🟢 LIVE — QR Ready";
         document.getElementById("status").style.color = "#86efac";
       } catch (e) {
         document.getElementById("status").textContent = "🔴 Error: " + e.message;
