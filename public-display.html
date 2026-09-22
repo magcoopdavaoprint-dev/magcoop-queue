@@ -220,7 +220,7 @@
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
-        document.getElementById("status").textContent = "🟢 LIVE — QRS Ready";
+        document.getElementById("status").textContent = "🟢 LIVE — QR Ready";
         document.getElementById("status").style.color = "#86efac";
       } catch (e) {
         document.getElementById("status").textContent = "🔴 Error: " + e.message;
