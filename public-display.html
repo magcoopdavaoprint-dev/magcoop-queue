@@ -42,16 +42,16 @@
   <div id="clickHint" class="click-hint">
     <div class="text-center p-6">
       <div class="pulse mb-4 text-5xl">🔊</div>
-      <h2 class="text-xl font-bold mb-2">👆 TAP/CLICK HERE ONCE</h2>
-      <p class="text-amber-400 font-semibold mb-1">To Enable Voice Announcements</p>
-      <p class="text-slate-400 text-sm">Required by all browsers — do this BEFORE casting</p>
+      <h2 class="text-xl font-bold mb-2">👆 CLICK/TAP HERE ONCE</h2>
+      <p class="text-amber-400 font-semibold mb-1">To Turn On Voice Announcements</p>
+      <p class="text-slate-400 text-sm">Do this first before casting</p>
     </div>
   </div>
 
   <header class="py-3 px-4 text-center shrink-0">
     <h1 class="text-2xl font-bold">MAGCOOP DAVAO — QUEUE DISPLAY</h1>
     <p class="text-slate-400 text-sm mt-1" id="status">Connecting...</p>
-    <p class="text-xs mt-1" id="voiceStatus">🔇 Waiting for click...</p>
+    <p class="text-xs mt-1" id="voiceStatus">🔇 Voice OFF — Click above to enable</p>
   </header>
 
   <main class="flex-1 grid grid-cols-1 lg:grid-cols-2 lg:grid-rows-2 gap-0 min-h-0">
@@ -94,8 +94,7 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
-    let audioUnlocked = false;
-    let voicesLoaded = false;
+    let voiceEnabled = false;
     let lastAnnouncedToken = "";
     let lastAnnouncedCounter = null;
     
@@ -113,62 +112,55 @@
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
-    // === PRELOAD VOICES ===
-    if ('speechSynthesis' in window) {
-      speechSynthesis.onvoiceschanged = () => {
-        voicesLoaded = speechSynthesis.getVoices().length > 0;
-        console.log("Voices loaded:", speechSynthesis.getVoices().length);
-      };
-    }
-
-    // === UNLOCK AUDIO ===
-    function enableAudio() {
-      if (audioUnlocked) return;
-      audioUnlocked = true;
+    // === ENABLE VOICE — ONE-TIME CLICK ===
+    function enableVoice() {
+      if (voiceEnabled) return;
+      
+      voiceEnabled = true;
       clickHint.classList.add("hidden");
       
       if ('speechSynthesis' in window) {
-        voiceStatus.textContent = "✅ Voice Ready — Announcements ON";
+        voiceStatus.textContent = "✅ VOICE ANNOUNCEMENTS ON";
         voiceStatus.style.color = "#86efac";
-        // Speak welcome message
-        setTimeout(() => speak("System ready. Announcements enabled."), 300);
+        // Test voice immediately
+        setTimeout(() => speak("Queue system ready. Announcements active."), 300);
       } else {
-        voiceStatus.textContent = "❌ Speech not supported";
+        voiceStatus.textContent = "❌ Voice not supported in this browser";
         voiceStatus.style.color = "#fca5a5";
       }
     }
     
-    clickHint.addEventListener("click", enableAudio);
-    clickHint.addEventListener("touchstart", enableAudio);
-    clickHint.addEventListener("mousedown", enableAudio);
-    clickHint.addEventListener("keydown", e => { if (e.key === 'Enter' || e.key === ' ') enableAudio(); });
+    // All possible triggers
+    clickHint.addEventListener("click", enableVoice);
+    clickHint.addEventListener("touchstart", enableVoice);
+    clickHint.addEventListener("mousedown", enableVoice);
+    clickHint.addEventListener("keydown", e => { if (e.key === 'Enter' || e.key === ' ') enableVoice(); });
 
-    // === SPEAK — ONLY SpeechSynthesis (NO blocked Google TTS) ===
+    // === SPEAK — PURE BUILT-IN VOICE ONLY ===
     function speak(text) {
-      if (!audioUnlocked) return;
+      if (!voiceEnabled) return;
       if (!('speechSynthesis' in window)) return;
       
-      // Stop any previous speech
+      // Clear any pending speech
       speechSynthesis.cancel();
       
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-PH";
-      utterance.rate = 0.85;
+      utterance.lang = "en-US";
+      utterance.rate = 0.8;  // Slightly slower = clearer
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
       
-      // Try to find an English voice
+      // Pick a clear English voice if available
       const voices = speechSynthesis.getVoices();
-      const preferred = voices.find(v => v.lang === 'en-PH' || v.lang === 'en-US' || v.lang.startsWith('en'));
-      if (preferred) utterance.voice = preferred;
-      
-      utterance.onstart = () => console.log("Speaking:", text);
-      utterance.onerror = (e) => console.error("Speech error:", e);
+      const englishVoice = voices.find(v => 
+        v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en')
+      );
+      if (englishVoice) utterance.voice = englishVoice;
       
       speechSynthesis.speak(utterance);
     }
 
-    // === LOAD QUEUE ===
+    // === LOAD & DISPLAY QUEUE ===
     async function loadData() {
       const { data: q } = await sb.from("queue").select("*").order("position", { ascending: true }).limit(10);
       const { data: s } = await sb.from("calls").select("*").eq("status", "serving").limit(1);
@@ -184,6 +176,7 @@
         document.getElementById("tokenDisplay").textContent = token;
         document.getElementById("whichCounter").textContent = `Counter ${counterNum}`;
         
+        // Speak ONLY when new token/counter
         if (lastAnnouncedToken !== token || lastAnnouncedCounter !== counterNum) {
           lastAnnouncedToken = token;
           lastAnnouncedCounter = counterNum;
@@ -200,6 +193,7 @@
         lastAnnouncedCounter = null;
       }
       
+      // Next in queue list
       const nextList = document.getElementById("nextList");
       if (q?.length) {
         const showFirst5 = q.slice(0, 5);
@@ -214,6 +208,7 @@
       }
     }
 
+    // Realtime updates
     sb.channel("display")
       .on("postgres_changes", { event:"*", schema:"public", table:"queue" }, loadData)
       .on("postgres_changes", { event:"INSERT", schema:"public", table:"calls" }, loadData)
@@ -222,6 +217,7 @@
     
     setInterval(loadData, 1500);
 
+    // Connection status
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
