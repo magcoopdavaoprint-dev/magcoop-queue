@@ -3,113 +3,120 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Public Display — MAGCOOP DAVAO</title>
+  <title>Agent Portal — MAGCOOP DAVAO</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          colors: { primary: '#2563eb', dark: '#0f172a', accent: '#f59e0b', success: '#10b981' }
+          colors: {
+            primary: '#2563eb',
+            secondary: '#e0e7ff',
+            danger: '#fee2e2',
+            dangerText: '#dc2626',
+            lightBg: '#f8fafc',
+            borderColor: '#f1f5f9'
+          }
         }
       }
     }
   </script>
   <style>
-    body { background: #0f172a; color: white; font-family: 'Inter', sans-serif; }
-    .name-big { 
-      font-size: clamp(3rem, 12vw, 7rem); 
-      font-weight: 800; 
-      line-height: 1; 
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .small-text { font-size: clamp(1rem, 3vw, 1.5rem); }
-    .counter-badge { background: #2563eb; padding: 0.5rem 1.5rem; border-radius: 9999px; font-weight: 700; display: inline-block; }
-    .enable-sound {
-      position: fixed; inset: 0; z-index: 100;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(15, 23, 42, 0.95); cursor: pointer;
-    }
-    .enable-sound.hidden { display: none; }
-    .pulse { animation: pulse 2s infinite; }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { transform: scale(1); }
-    }
-    .qr-box { background: white; border-radius: 12px; padding: 1rem; display: flex; align-items: center; justify-content: center; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #ffffff; color: #1e293b; }
+    .card { background: #fff; border-radius: 12px; border: 1px solid #f1f5f9; padding: 1.25rem; }
+    .collapse-content { overflow: hidden; max-height: 0; transition: max-height 0.3s ease; }
+    .collapse-content.open { max-height: 400px; }
   </style>
 </head>
-<body class="min-h-screen">
+<body class="p-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <h1 class="text-2xl font-bold mb-2">Agent Portal — MAGCOOP DAVAO</h1>
+    <p class="text-green-600 text-sm mb-6 flex items-center gap-2">
+      <span>✅</span> Connected to Supabase
+    </p>
 
-  <div id="soundGate" class="enable-sound">
-    <div class="text-center p-8">
-      <div class="pulse mb-6 text-6xl">🔊</div>
-      <h2 class="text-2xl font-bold mb-3">TAP TO ENABLE SOUND</h2>
-      <p class="text-slate-400 text-lg">Scan QR to join queue</p>
-    </div>
-  </div>
+    <!-- Top Row: Recently Served | Quick Stats | Quick Actions -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+      
+      <!-- ✅ RECENTLY SERVED — Same Box, Same Position -->
+      <div class="card">
+        <button id="recentToggle" class="w-full flex items-center justify-between text-left text-gray-700 font-medium">
+          <span class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Recently Served
+          </span>
+          <span id="toggleIcon" class="text-gray-400 text-sm">▼</span>
+        </button>
+        <div id="recentContent" class="collapse-content">
+          <div id="recentList" class="mt-3 text-center text-gray-400 text-sm">
+            None yet
+          </div>
+        </div>
+      </div>
 
-  <div class="container mx-auto px-4 py-6">
-    <header class="text-center mb-8">
-      <h1 class="text-3xl font-bold">MAGCOOP DAVAO — QUEUE DISPLAY</h1>
-      <p class="text-slate-400 mt-2" id="status">Connecting...</p>
-    </header>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- NOW SERVING -->
-      <div class="lg:col-span-2 bg-slate-800/50 rounded-2xl p-8 border border-slate-700/50 text-center">
-        <p class="text-slate-400 mb-3">NOW SERVING</p>
-        <p class="name-big text-accent" id="bigName">—</p>
-        <p class="small-text text-slate-300 mt-4" id="proceedText">Waiting for next...</p>
-        <p class="mt-2 text-slate-400" id="tokenDisplay"></p>
-        <p class="mt-4">
-          <span class="counter-badge" id="whichCounter">Counter 1</span>
+      <!-- Quick Stats -->
+      <div class="card">
+        <h3 class="font-semibold text-gray-700 mb-3">Quick Stats</h3>
+        <p class="text-center">
+          <span class="text-3xl font-bold">0</span>
+          <span class="block text-xs text-gray-400 mt-1">Waiting</span>
         </p>
       </div>
 
-      <!-- NEXT IN QUEUE -->
-      <div class="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50">
-        <h3 class="text-lg font-semibold text-slate-300 mb-4">Next in Queue</h3>
-        <div id="nextList" class="space-y-3">
-          <p class="text-slate-500 text-center py-4">No customers waiting</p>
+      <!-- Quick Actions -->
+      <div class="card">
+        <h3 class="font-semibold text-gray-700 mb-3">Quick Actions</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <button class="bg-primary text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-primary/90">Add Customer</button>
+          <button class="bg-lightBg border border-gray-200 py-2 px-3 rounded-lg text-sm font-medium hover:bg-gray-50">Public Display</button>
         </div>
       </div>
     </div>
 
-    <!-- ✅ RECENTLY SERVED + QR CODE — SIDE BY SIDE -->
-    <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- RECENTLY SERVED (LEFT) -->
-      <div class="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50">
-        <h3 class="text-lg font-semibold text-slate-300 mb-4">Recently Served</h3>
-        <div id="recentList" class="grid grid-cols-3 gap-3 text-center">
-          <p class="text-slate-500 col-span-full">None yet</p>
+    <!-- Bottom Row: Counter Selection | Queue List -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      
+      <!-- Counter Selection -->
+      <div class="card">
+        <h3 class="font-semibold text-gray-700 mb-3">Counter Selection</h3>
+        <p class="text-sm text-gray-400 mb-3">Choose where customer goes</p>
+        <div class="grid grid-cols-2 gap-3 mb-6">
+          <button id="counter1" class="bg-primary text-white py-3 rounded-lg font-semibold">Counter 1</button>
+          <button id="counter2" class="bg-gray-100 py-3 rounded-lg font-semibold">Counter 2</button>
         </div>
+        
+        <div class="bg-lightBg rounded-lg p-4 mb-4">
+          <p class="text-xs text-gray-400 mb-1">CURRENTLY SERVING</p>
+          <p class="text-lg font-bold" id="currentlyServing">—</p>
+        </div>
+        
+        <button id="callNextBtn" class="w-full bg-secondary text-blue-700 py-3 rounded-lg font-semibold mb-3 hover:bg-indigo-100">
+          ➔ CALL NEXT CUSTOMER
+        </button>
+        <button id="resetBtn" class="w-full bg-danger text-dangerText py-3 rounded-lg font-semibold hover:bg-red-100">
+          ⟲ RESET QUEUE — Start from MAG-1
+        </button>
       </div>
 
-      <!-- ✅ QR CODE SECTION (RIGHT) -->
-      <div class="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 text-center">
-        <h3 class="text-lg font-semibold text-slate-300 mb-4">📱 SCAN TO JOIN QUEUE</h3>
-        <div class="qr-box mb-3">
-          <!-- QR Code Generated from your URL -->
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=http%3A%2F%2Flocalhost%2Fqueuing%2FNew%2520folder%2Fjoin-queue.html" 
-               alt="Scan to Join Queue" 
-               class="w-56 h-56 object-contain"
-               onerror="this.style.display='none'; document.getElementById('qrFallback').style.display='block';">
-          <div id="qrFallback" class="hidden text-center text-slate-800">
-            <p class="font-bold">MAGCOOP</p>
-            <p class="text-sm mt-2">Scan QR Code</p>
-            <p class="text-xs mt-1">or visit:</p>
-            <p class="text-xs font-mono mt-1 break-all">localhost/queuing/New folder/join-queue.html</p>
-          </div>
+      <!-- Queue List -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-gray-700">Queue List</h3>
+          <button id="clearAllBtn" class="text-sm text-gray-400 hover:text-red-500">Clear All</button>
         </div>
-        <p class="text-sm text-slate-400">Point camera at QR → Enter name → Submit</p>
-        <a href="http://localhost/queuing/New%20folder/join-queue.html" 
-           target="_blank" 
-           class="inline-block mt-3 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-          Open Join Page →
-        </a>
+        <div class="grid grid-cols-12 text-xs text-gray-400 py-2 border-b border-gray-100 font-medium">
+          <span class="col-span-1">#</span>
+          <span class="col-span-3">Token</span>
+          <span class="col-span-4">Name</span>
+          <span class="col-span-4">Service</span>
+        </div>
+        <div id="queueList" class="mt-2">
+          <p class="text-gray-400 text-center py-6 text-sm">No customers in queue</p>
+        </div>
       </div>
     </div>
   </div>
@@ -117,120 +124,141 @@
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
-
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let audioUnlocked = false;
-    let lastAnnouncedToken = "";
-    let lastAnnouncedCounter = null;
-    const soundGate = document.getElementById("soundGate");
+    const recentToggle = document.getElementById('recentToggle');
+    const recentContent = document.getElementById('recentContent');
+    const toggleIcon = document.getElementById('toggleIcon');
+    const recentList = document.getElementById('recentList');
+    const currentlyServing = document.getElementById('currentlyServing');
+    const queueList = document.getElementById('queueList');
+    const callNextBtn = document.getElementById('callNextBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const counter1 = document.getElementById('counter1');
+    const counter2 = document.getElementById('counter2');
 
-    async function unlockSound() {
-      if (audioUnlocked) return;
+    let selectedCounter = 1;
+    let isLoading = false;
+
+    // Toggle Recently Served
+    recentToggle.addEventListener('click', () => {
+      recentContent.classList.toggle('open');
+      toggleIcon.textContent = recentContent.classList.contains('open') ? '▲' : '▼';
+    });
+
+    // Counter selection
+    counter1.addEventListener('click', () => {
+      selectedCounter = 1;
+      counter1.className = 'bg-primary text-white py-3 rounded-lg font-semibold';
+      counter2.className = 'bg-gray-100 py-3 rounded-lg font-semibold';
+    });
+    counter2.addEventListener('click', () => {
+      selectedCounter = 2;
+      counter2.className = 'bg-primary text-white py-3 rounded-lg font-semibold';
+      counter1.className = 'bg-gray-100 py-3 rounded-lg font-semibold';
+    });
+
+    // Refresh all data
+    async function refreshAll() {
+      if (isLoading) return;
+      isLoading = true;
+      
       try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        await ctx.resume();
-      } catch (e) {}
-      audioUnlocked = true;
-      soundGate.classList.add("hidden");
-      speak("Welcome to MAGCOOP Davao. System ready.");
-    }
+        const { data: queue } = await sb.from('queue').select('*').order('position', { ascending: true });
+        const { data: serving } = await sb.from('calls').select('*').eq('status', 'serving').limit(1);
+        const { data: recent } = await sb.from('calls').select('*').eq('status', 'finished').order('created_at', { ascending: false }).limit(10);
 
-    soundGate.addEventListener("click", unlockSound);
-    soundGate.addEventListener("touchstart", unlockSound);
-
-    function speak(text) {
-      if (!audioUnlocked) return;
-      window.speechSynthesis.cancel();
-      setTimeout(() => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "en-PH";
-        utterance.rate = 0.85;
-        utterance.volume = 1;
-        window.speechSynthesis.speak(utterance);
-      }, 150);
-    }
-
-    async function loadData() {
-      const { data: q } = await sb.from("queue").select("*").order("position", { ascending: true }).limit(5);
-      const { data: s } = await sb.from("calls").select("*").eq("status", "serving").limit(1);
-      const { data: r } = await sb.from("calls").select("*").eq("status", "finished").order("created_at", { ascending: false }).limit(6);
-
-      if (s?.length) {
-        const token = s[0].token;
-        const counterNum = parseInt(s[0].counter, 10) || 1;
-        const name = s[0].name || "Customer";
-        const nameUpper = name.toUpperCase();
-
-        let counterWord;
-        if (counterNum === 1) counterWord = "one";
-        else if (counterNum === 2) counterWord = "two";
-        else counterWord = counterNum.toString();
-
-        document.getElementById("bigName").textContent = nameUpper;
-        document.getElementById("proceedText").textContent = `Please proceed to Counter ${counterNum}.`;
-        document.getElementById("tokenDisplay").textContent = token;
-        document.getElementById("whichCounter").textContent = `Counter ${counterNum}`;
-
-        if (lastAnnouncedToken !== token || lastAnnouncedCounter !== counterNum) {
-          lastAnnouncedToken = token;
-          lastAnnouncedCounter = counterNum;
-          if (audioUnlocked) {
-            speak(`${name}. Please proceed to Counter ${counterWord}. Thank you.`);
-          }
+        // Currently Serving
+        if (serving?.length) {
+          currentlyServing.textContent = `${serving[0].token} — ${serving[0].counter || 1}`;
+        } else {
+          currentlyServing.textContent = '—';
         }
-      } else {
-        document.getElementById("bigName").textContent = "—";
-        document.getElementById("proceedText").textContent = "Waiting for next customer...";
-        document.getElementById("tokenDisplay").textContent = "";
-        document.getElementById("whichCounter").textContent = "Counter 1";
-        lastAnnouncedToken = "";
-        lastAnnouncedCounter = null;
-      }
 
-      const nextList = document.getElementById("nextList");
-      if (q?.length) {
-        nextList.innerHTML = q.map((c, i) => `
-          <div class="bg-slate-700/40 rounded-lg p-3 ${i === 0 ? "border-2 border-amber-400/50" : ""}">
-            <span class="text-xl font-bold">${c.token}</span>
-            <span class="text-slate-300 ml-2 text-sm">${(c.name || "").toUpperCase()}</span>
-          </div>
-        `).join("");
-      } else {
-        nextList.innerHTML = '<p class="text-slate-500 text-center py-4">No customers waiting</p>';
-      }
+        // Queue List
+        if (queue?.length) {
+          queueList.innerHTML = queue.map((item, idx) => `
+            <div class="grid grid-cols-12 py-2 border-b border-gray-50 text-sm items-center">
+              <span class="col-span-1 text-gray-400">${idx + 1}</span>
+              <span class="col-span-3 font-medium">${item.token}</span>
+              <span class="col-span-4 text-gray-600">${item.name || '-'}</span>
+              <span class="col-span-4 text-gray-400 text-xs">${item.service || '-'}</span>
+            </div>
+          `).join('');
+        } else {
+          queueList.innerHTML = '<p class="text-gray-400 text-center py-6 text-sm">No customers in queue</p>';
+        }
 
-      const recentList = document.getElementById("recentList");
-      if (r?.length) {
-        recentList.innerHTML = r.map(c => `
-          <div class="bg-slate-700/30 rounded-lg p-2">
-            <p class="font-bold text-slate-400">${c.token}</p>
-          </div>
-        `).join("");
-      } else {
-        recentList.innerHTML = '<p class="text-slate-500 col-span-full">None yet</p>';
+        // Recently Served
+        if (recent?.length) {
+          recentList.innerHTML = recent.map(item => `
+            <div class="py-2 border-b border-gray-50 text-sm">
+              <span class="font-medium">${item.token}</span>
+              <span class="text-gray-600 mx-2">${(item.name || '')}</span>
+              <span class="text-gray-400 text-xs">Counter ${item.counter || 1}</span>
+            </div>
+          `).join('');
+        } else {
+          recentList.innerHTML = '<p class="text-gray-400 py-3">None yet</p>';
+        }
+      } catch (e) {
+        console.error('Load error:', e);
       }
+      
+      isLoading = false;
     }
 
-    sb.channel("display")
-      .on("postgres_changes", { event: "*", schema: "public", table: "queue" }, loadData)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "calls" }, loadData)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "calls" }, loadData)
+    // Call Next
+    callNextBtn.addEventListener('click', async () => {
+      if (isLoading) return;
+      const { data: queue } = await sb.from('queue').select('*').order('position', { ascending: true }).limit(1);
+      if (!queue?.length) return alert('No customers in queue!');
+
+      const next = queue[0];
+      
+      // Finish current if any
+      const { data: curr } = await sb.from('calls').select('*').eq('status', 'serving').limit(1);
+      if (curr?.length) {
+        await sb.from('calls').update({ status: 'finished' }).eq('id', curr[0].id);
+      }
+
+      // Start serving next
+      await sb.from('calls').insert({
+        token: next.token,
+        name: next.name,
+        counter: selectedCounter,
+        status: 'serving'
+      });
+
+      // Remove from queue
+      await sb.from('queue').delete().eq('id', next.id);
+      
+      await refreshAll();
+    });
+
+    // Reset Queue
+    resetBtn.addEventListener('click', async () => {
+      if (!confirm('Reset entire queue? This cannot be undone.')) return;
+      await sb.from('queue').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await sb.from('calls').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await refreshAll();
+    });
+
+    // Clear All
+    clearAllBtn.addEventListener('click', async () => {
+      if (!confirm('Remove ALL customers from queue?')) return;
+      await sb.from('queue').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await refreshAll();
+    });
+
+    // Real-time updates
+    sb.channel('agent')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue' }, refreshAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, refreshAll)
       .subscribe();
 
-    setInterval(loadData, 1000);
-
-    (async () => {
-      try {
-        await sb.from("queue").select("*").limit(1);
-        document.getElementById("status").textContent = "🟢 LIVE — QR Ready";
-        document.getElementById("status").style.color = "#86efac";
-      } catch (e) {
-        document.getElementById("status").textContent = "🔴 Connection error: " + e.message;
-        document.getElementById("status").style.color = "#fca5a5";
-      }
-      loadData();
-    })();
+    refreshAll();
   </script>
 </body>
 </html>
