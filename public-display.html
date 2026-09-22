@@ -36,6 +36,7 @@
     .queue-item { padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: rgba(51,65,85,0.4); }
     .bottom-section { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; height: 100%; }
     .section-heading { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.75rem; text-align: center; }
+    .audio-hint { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.8rem; z-index: 10; }
   </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -43,8 +44,8 @@
     <div class="text-center p-6">
       <div class="pulse mb-4 text-5xl">🔊</div>
       <h2 class="text-xl font-bold mb-2">👆 CLICK/TAP HERE ONCE</h2>
-      <p class="text-amber-400 font-semibold mb-1">To Turn On Voice Announcements</p>
-      <p class="text-slate-400 text-sm">Do this first before casting</p>
+      <p class="text-amber-400 font-semibold mb-1">To Enable Voice — BEFORE Casting</p>
+      <p class="text-slate-400 text-sm">Sound plays from BOTH your device & TV</p>
     </div>
   </div>
 
@@ -89,6 +90,9 @@
     </section>
   </main>
 
+  <!-- Hidden audio player — sends sound to TV when casted -->
+  <audio id="castAudioPlayer" preload="auto" style="display:none;">
+
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
@@ -100,6 +104,7 @@
     
     const clickHint = document.getElementById("clickHint");
     const voiceStatus = document.getElementById("voiceStatus");
+    const castAudioPlayer = document.getElementById("castAudioPlayer");
 
     // === PH TIME ===
     function updateDateTime() {
@@ -112,55 +117,52 @@
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
-    // === ENABLE VOICE — ONE-TIME CLICK ===
+    // === ENABLE AUDIO ===
     function enableVoice() {
       if (voiceEnabled) return;
       
       voiceEnabled = true;
       clickHint.classList.add("hidden");
       
-      if ('speechSynthesis' in window) {
-        voiceStatus.textContent = "✅ VOICE ANNOUNCEMENTS ON";
-        voiceStatus.style.color = "#86efac";
-        // Test voice immediately
-        setTimeout(() => speak("Queue system ready. Announcements active."), 300);
-      } else {
-        voiceStatus.textContent = "❌ Voice not supported in this browser";
-        voiceStatus.style.color = "#fca5a5";
-      }
+      voiceStatus.textContent = "✅ VOICE ON — Cast AFTER you hear this message";
+      voiceStatus.style.color = "#86efac";
+      
+      setTimeout(() => speak("Queue system ready. Announcements active."), 300);
     }
     
-    // All possible triggers
     clickHint.addEventListener("click", enableVoice);
     clickHint.addEventListener("touchstart", enableVoice);
     clickHint.addEventListener("mousedown", enableVoice);
     clickHint.addEventListener("keydown", e => { if (e.key === 'Enter' || e.key === ' ') enableVoice(); });
 
-    // === SPEAK — PURE BUILT-IN VOICE ONLY ===
+    // === SPEAK — DUAL SYSTEM: Device + TV Cast ===
     function speak(text) {
       if (!voiceEnabled) return;
-      if (!('speechSynthesis' in window)) return;
       
-      // Clear any pending speech
-      speechSynthesis.cancel();
+      // 🔊 Method 1: Built-in speech — plays on your phone/laptop
+      if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
+        const utt = new SpeechSynthesisUtterance(text);
+        utt.lang = "en-US";
+        utt.rate = 0.8;
+        utt.volume = 1.0;
+        const voices = speechSynthesis.getVoices();
+        const englishVoice = voices.find(v => v.lang.startsWith('en'));
+        if (englishVoice) utt.voice = englishVoice;
+        speechSynthesis.speak(utt);
+      }
       
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
-      utterance.rate = 0.8;  // Slightly slower = clearer
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-      
-      // Pick a clear English voice if available
-      const voices = speechSynthesis.getVoices();
-      const englishVoice = voices.find(v => 
-        v.lang === 'en-US' || v.lang === 'en-GB' || v.lang.startsWith('en')
-      );
-      if (englishVoice) utterance.voice = englishVoice;
-      
-      speechSynthesis.speak(utterance);
+      // 📺 Method 2: Audio file — FOLLOWS CAST TO TV
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en-US&client=tw-ob`;
+      castAudioPlayer.pause();
+      castAudioPlayer.src = ttsUrl;
+      castAudioPlayer.volume = 1.0;
+      castAudioPlayer.play().catch(err => {
+        console.log("TV audio fallback:", err.message);
+      });
     }
 
-    // === LOAD & DISPLAY QUEUE ===
+    // === LOAD QUEUE DATA ===
     async function loadData() {
       const { data: q } = await sb.from("queue").select("*").order("position", { ascending: true }).limit(10);
       const { data: s } = await sb.from("calls").select("*").eq("status", "serving").limit(1);
@@ -176,7 +178,6 @@
         document.getElementById("tokenDisplay").textContent = token;
         document.getElementById("whichCounter").textContent = `Counter ${counterNum}`;
         
-        // Speak ONLY when new token/counter
         if (lastAnnouncedToken !== token || lastAnnouncedCounter !== counterNum) {
           lastAnnouncedToken = token;
           lastAnnouncedCounter = counterNum;
@@ -193,7 +194,6 @@
         lastAnnouncedCounter = null;
       }
       
-      // Next in queue list
       const nextList = document.getElementById("nextList");
       if (q?.length) {
         const showFirst5 = q.slice(0, 5);
@@ -208,7 +208,6 @@
       }
     }
 
-    // Realtime updates
     sb.channel("display")
       .on("postgres_changes", { event:"*", schema:"public", table:"queue" }, loadData)
       .on("postgres_changes", { event:"INSERT", schema:"public", table:"calls" }, loadData)
@@ -217,7 +216,6 @@
     
     setInterval(loadData, 1500);
 
-    // Connection status
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
