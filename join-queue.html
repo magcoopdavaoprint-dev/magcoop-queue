@@ -26,11 +26,9 @@
       50% { transform: scale(1.03); }
       100% { transform: scale(1); }
     }
-    .redirect-text { animation: blink 1s infinite; }
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
+    .option-card { transition: all 0.2s ease; cursor: pointer; }
+    .option-card.selected { border-color: #22c55e; background: #f0fdf4; }
+    .option-card:hover { transform: translateY(-2px); }
   </style>
 </head>
 <body class="flex items-center justify-center p-4">
@@ -39,7 +37,7 @@
       <span class="text-magcoop-blue">MAG</span><span class="text-magcoop-yellow">COOP</span>
     </h1>
     <h2 class="text-xl font-semibold text-gray-700 mb-6">Join the Queue</h2>
-
+    
     <!-- Form Section -->
     <div id="formSection">
       <label class="block text-left text-gray-600 font-medium mb-2">Your Full Name</label>
@@ -50,26 +48,55 @@
         class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-lg focus:border-magcoop-blue focus:outline-none"
         autocomplete="name"
       />
+      
+      <label class="block text-left text-gray-600 font-medium mt-5 mb-3">Select Service Type</label>
+      
+      <!-- Service Options -->
+      <div class="grid grid-cols-1 gap-3 mb-6">
+        <div id="optGeneral" class="option-card border-2 border-gray-200 rounded-xl p-4 text-left selected">
+          <div class="flex items-center gap-3">
+            <span class="text-xl">📋</span>
+            <div>
+              <p class="font-semibold text-gray-800">Encoding</p>
+              <p class="text-xs text-gray-500">Visa, Forms, Printing, Uniform</p>
+            </div>
+            <span class="ml-auto text-magcoop-green font-bold" id="checkGeneral">✓</span>
+          </div>
+        </div>
+        
+        <div id="optLoan" class="option-card border-2 border-gray-200 rounded-xl p-4 text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-xl">💰</span>
+            <div>
+              <p class="font-semibold text-gray-800">MAGCOOP Loan</p>
+              <p class="text-xs text-gray-500">Loan application & processing</p>
+            </div>
+            <span class="ml-auto text-magcoop-green font-bold hidden" id="checkLoan">✓</span>
+          </div>
+        </div>
+      </div>
+      
       <button 
         id="submitBtn" 
-        class="w-full bg-magcoop-green hover:bg-green-600 text-white text-lg font-bold py-3 rounded-xl transition pulse-btn mt-6"
+        class="w-full bg-magcoop-green hover:bg-green-600 text-white text-lg font-bold py-3 rounded-xl transition pulse-btn"
       >
         ✅ Submit to Queue
       </button>
       
       <p id="statusText" class="mt-3 text-xs text-gray-400">Ready</p>
     </div>
-
+    
     <!-- Success Section -->
     <div id="successSection" class="hidden">
       <div class="text-6xl mb-4">✅</div>
       <h3 class="text-2xl font-bold text-green-600 mb-2">YOU'RE IN THE QUEUE!</h3>
       <p class="text-lg text-gray-700 mb-1">Token: <span id="showToken" class="font-bold text-magcoop-blue"></span></p>
-      <p class="text-lg text-gray-700 mb-4">Name: <span id="showName" class="font-bold uppercase"></span></p>
-      <p class="text-sm text-gray-500">
-        Closing & going to Queue Display in <span id="countdown">5</span> seconds...
+      <p class="text-lg text-gray-700 mb-1">Name: <span id="showName" class="font-bold uppercase"></span></p>
+      <p class="text-md text-gray-600 mb-4">Service: <span id="showService" class="font-semibold"></span></p>
+      <p class="text-sm text-gray-500 mb-3">
+        Auto-closing in <span id="countdown">5</span> seconds...
       </p>
-      <a href="public-display.html" class="inline-block mt-4 text-magcoop-blue hover:underline font-medium">
+      <a href="public-display.html" class="inline-block mt-2 text-magcoop-blue hover:underline font-medium">
         📋 View Queue List Now →
       </a>
     </div>
@@ -78,28 +105,74 @@
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
+    
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-
+    
     const nameInput = document.getElementById('fullName');
     const submitBtn = document.getElementById('submitBtn');
     const formSection = document.getElementById('formSection');
     const successSection = document.getElementById('successSection');
     const showToken = document.getElementById('showToken');
     const showName = document.getElementById('showName');
+    const showService = document.getElementById('showService');
     const countdownEl = document.getElementById('countdown');
     const statusText = document.getElementById('statusText');
+    
+    const optGeneral = document.getElementById('optGeneral');
+    const optLoan = document.getElementById('optLoan');
+    const checkGeneral = document.getElementById('checkGeneral');
+    const checkLoan = document.getElementById('checkLoan');
+    
+    let selectedService = 'Encoding';
+    let selectedDept = 'Customer Service';
 
+    // === Service Selection ===
+    function selectService(type) {
+      optGeneral.classList.remove('selected');
+      optLoan.classList.remove('selected');
+      checkGeneral.classList.add('hidden');
+      checkLoan.classList.add('hidden');
+      
+      if (type === 'general') {
+        optGeneral.classList.add('selected');
+        checkGeneral.classList.remove('hidden');
+        selectedService = 'Encoding';
+        selectedDept = 'Customer Service';
+      } else {
+        optLoan.classList.add('selected');
+        checkLoan.classList.remove('hidden');
+        selectedService = 'MAGCOOP Loan';
+        selectedDept = 'Loans';
+      }
+    }
+    
+    optGeneral.addEventListener('click', () => selectService('general'));
+    optLoan.addEventListener('click', () => selectService('loan'));
+
+    // === Pre-fill from QR link ===
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       const nameFromLink = params.get('name');
+      const serviceFromLink = params.get('service');
+      
       if (nameFromLink) {
         nameInput.value = decodeURIComponent(nameFromLink);
         statusText.textContent = 'Name from QR link';
       }
+      
+      if (serviceFromLink === 'loan') {
+        selectService('loan');
+        statusText.textContent = 'Service: MAGCOOP Loan';
+      } else {
+        selectService('general');
+        statusText.textContent = 'Ready';
+      }
+      
       nameInput.focus();
     });
 
+    // === Get Next Token ===
     async function getNextToken() {
       const [{ data: q }, { data: c }] = await Promise.all([
         sb.from('queue').select('token'),
@@ -114,6 +187,7 @@
       return `MAG-${maxNum + 1}`;
     }
 
+    // === Submit Form — with RELIABLE auto-close ===
     async function submitToQueue() {
       const name = nameInput.value.trim();
       
@@ -123,12 +197,12 @@
         nameInput.focus();
         return;
       }
-
+      
       submitBtn.disabled = true;
       submitBtn.textContent = 'Submitting...';
       statusText.textContent = 'Saving...';
       statusText.style.color = 'inherit';
-
+      
       try {
         const token = await getNextToken();
         const { count } = await sb.from('queue').select('*', { count: 'exact', head: true });
@@ -136,21 +210,21 @@
         const { error } = await sb.from('queue').insert({
           token,
           name: name,
-          service: 'General Inquiry',
-          dept: 'Customer Service',
+          service: selectedService,
+          dept: selectedDept,
           position: (count || 0) + 1
         });
-
+        
         if (error) throw error;
-
-        showToken.textContent = token;
-        showName.textContent = name.toUpperCase();
         
         // Show success screen
+        showToken.textContent = token;
+        showName.textContent = name.toUpperCase();
+        showService.textContent = selectedService;
         formSection.classList.add('hidden');
         successSection.classList.remove('hidden');
-
-        // Countdown then CLOSE window + go to display
+        
+        // Countdown then close or redirect
         let seconds = 5;
         const timer = setInterval(() => {
           seconds--;
@@ -159,15 +233,16 @@
           if (seconds <= 0) {
             clearInterval(timer);
             
-            // ✅ Close this window/tab
-            window.open('', '_self');
-            window.close();
+            // Try to close first — works if opened by link/QR
+            const canClose = window.close();
             
-            // Fallback if close is blocked
-            window.location.href = 'public-display.html';
+            // If browser blocks close → go to display page
+            if (!canClose) {
+              window.location.replace('public-display.html');
+            }
           }
         }, 1000);
-
+        
       } catch (err) {
         statusText.textContent = '❌ ' + err.message;
         statusText.style.color = '#ef4444';
