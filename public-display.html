@@ -86,19 +86,21 @@
   </main>
 
   <script>
+    <!-- AUDIO PLAYER -->
+  <audio id="audioPlayer" preload="auto">
+  <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
-    let voiceEnabled = false;
-    let voicesLoaded = false;
+    let audioUnlocked = false;
+    let useSpeech = false;
     let lastAnnouncedToken = "";
     let lastAnnouncedCounter = null;
-    
     const clickHint = document.getElementById("clickHint");
     const voiceStatus = document.getElementById("voiceStatus");
-
-    // === PH TIME ===
+    const audioPlayer = document.getElementById("audioPlayer");
+    // === DATE & TIME — PH TIME ===
     function updateDateTime() {
       const now = new Date();
       const optTime = { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true, timeZone:'Asia/Manila' };
@@ -108,88 +110,56 @@
     }
     updateDateTime();
     setInterval(updateDateTime, 1000);
-
-    // === PRE-LOAD VOICES ===
-    if ('speechSynthesis' in window) {
-      // Wait until voices are actually ready
-      speechSynthesis.onvoiceschanged = () => {
-        voicesLoaded = speechSynthesis.getVoices().length > 0;
-        console.log("Voices available:", speechSynthesis.getVoices().length);
-      };
-      // Trigger voice loading early
-      speechSynthesis.getVoices();
-    }
-
-    // === ENABLE VOICE — ONE CLICK ===
-    function enableVoice() {
-      if (voiceEnabled) return;
-      voiceEnabled = true;
+    // === UNLOCK AUDIO ===
+    function enableAudio() {
+      if (audioUnlocked) return;
+      audioUnlocked = true;
       clickHint.classList.add("hidden");
-      
-      if (!('speechSynthesis' in window)) {
-        voiceStatus.textContent = "❌ Browser does not support voice";
-        voiceStatus.style.color = "#fca5a5";
-        return;
-      }
-      
-      voiceStatus.textContent = "✅ VOICE ENABLED — Volume UP!";
-      voiceStatus.style.color = "#86efac";
-      
-      // Wait for voices then speak welcome
-      function waitAndSpeak() {
-        if (speechSynthesis.getVoices().length > 0) {
-          speak("Queue system ready. Announcements are active.");
+      try {
+        if (window.speechSynthesis && window.speechSynthesis.getVoices().length > 0) {
+          useSpeech = true;
+          voiceStatus.textContent = "✅ Voice Ready";
+          voiceStatus.style.color = "#86efac";
         } else {
-          setTimeout(waitAndSpeak, 150);
+          useSpeech = false;
+          voiceStatus.textContent = "✅ Audio Ready (Direct)";
+          voiceStatus.style.color = "#86efac";
         }
+      } catch {
+        useSpeech = false;
+        voiceStatus.textContent = "✅ Audio Ready (Direct)";
+        voiceStatus.style.color = "#86efac";
       }
-      waitAndSpeak();
+      // Unlock audio
+      const silent = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhBAAEAgAAAAQAACBAAAgIAAAAAAAgIAAAAAAAACIgAICIA/8gAABAg/+P/6DwEBAP/+/w==");
+      silent.volume = 0;
+      silent.play().catch(()=>{});
+      setTimeout(() => speak("System ready. Announcements enabled."), 300);
     }
-    
-    clickHint.addEventListener("click", enableVoice);
-    clickHint.addEventListener("touchstart", enableVoice);
-    clickHint.addEventListener("mousedown", enableVoice);
-
-    // === SPEAK — PURE BUILT-IN VOICE ONLY (NO GOOGLE LINKS) ===
+    clickHint.addEventListener("click", enableAudio);
+    clickHint.addEventListener("touchstart", enableAudio);
+    clickHint.addEventListener("mousedown", enableAudio);
+    clickHint.addEventListener("keydown", e => { if (e.key==='Enter'||e.key===' ') enableAudio(); });
+    // === SPEAK — DUAL SYSTEM ===
     function speak(text) {
-      if (!voiceEnabled) return;
-      if (!('speechSynthesis' in window)) return;
-      
-      // Stop any previous speech
-      speechSynthesis.cancel();
-      
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
-      utterance.rate = 0.85;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-      
-      // Pick a clear English voice
-      const voices = speechSynthesis.getVoices();
-      const preferredVoice = voices.find(v => 
-        v.lang.startsWith('en') && !v.lang.includes('IN') && !v.lang.includes('ID')
-      );
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
+      if (!audioUnlocked) return;
+      if (useSpeech && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+          const utt = new SpeechSynthesisUtterance(text);
+          utt.lang = "en-PH"; utt.rate = 0.85; utt.volume = 1;
+          utt.onerror = () => { useSpeech = false; speak(text); };
+          window.speechSynthesis.speak(utt);
+          return;
+        } catch { useSpeech = false; }
       }
-      
-      utterance.onstart = () => {
-        voiceStatus.textContent = "🔊 Speaking...";
-        voiceStatus.style.color = "#86efac";
-      };
-      
-      utterance.onend = () => {
-        voiceStatus.textContent = "✅ Voice Ready";
-        voiceStatus.style.color = "#86efac";
-      };
-      
-      utterance.onerror = (e) => {
-        console.error("Speech error:", e);
-        voiceStatus.textContent = "⚠️ Refresh page & click again";
-        voiceStatus.style.color = "#fca5a5";
-      };
-      
-      speechSynthesis.speak(utterance);
+      // Direct MP3 fallback — works on cast/TV
+      try {
+        audioPlayer.pause();
+        audioPlayer.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en-PH&client=tw-ob`;
+        audioPlayer.volume = 1;
+        audioPlayer.play();
+      } catch (e) { console.log("Audio failed:", e); }
     }
 
     // === LOAD QUEUE DATA ===
