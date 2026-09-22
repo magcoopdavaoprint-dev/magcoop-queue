@@ -10,12 +10,7 @@
     tailwind.config = {
       theme: {
         extend: {
-          colors: {
-            magcoop: {
-              loan: '#8b5cf6',
-              loandark: '#7c3aed'
-            }
-          }
+          colors: { magcoop: { loan: '#8b5cf6', loandark: '#7c3aed' } }
         }
       }
     }
@@ -34,15 +29,16 @@
   <div class="max-w-6xl mx-auto">
     <div class="text-center mb-8">
       <h1 class="text-4xl font-bold text-white mb-2">💰 MAGCOOP — LOAN COUNTER</h1>
-      <p class="text-indigo-200">Davao Branch · Dedicated Loan Processing</p>
+      <p class="text-indigo-200">Davao Branch · Loan Processing Only</p>
     </div>
 
     <div class="bg-white rounded-3xl shadow-2xl p-8 mb-8 text-center" id="servingCard">
       <h2 class="text-7xl font-bold text-magcoop-loan mb-4" id="currentToken">—</h2>
-      <p class="text-3xl text-gray-700 font-semibold" id="currentName">Waiting for next...</p>
+      <p class="text-3xl text-gray-700 font-semibold" id="currentName">Waiting for next loan...</p>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Loan Queue List -->
       <div class="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">📋 Loan Queue List</h3>
         <table class="w-full text-sm">
@@ -60,11 +56,15 @@
         </table>
       </div>
 
+      <!-- Controls -->
       <div class="bg-white rounded-2xl shadow-xl p-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-4">⚙️ Controls</h3>
+        <h3 class="text-xl font-bold text-gray-800 mb-4">⚙️ Loan Controls</h3>
         <p class="text-xs text-indigo-500 mb-1">WAITING</p>
         <p class="text-3xl font-bold text-magcoop-loan mb-6" id="waitingCount">0</p>
 
+        <button id="addLoanBtn" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-3 rounded-xl mb-4">
+          ➕ Add Loan Applicant
+        </button>
         <button id="callNextBtn" class="w-full bg-magcoop-loan hover:bg-magcoop-loandark text-white text-lg font-bold py-4 rounded-xl transition mb-4">
           📢 CALL NEXT LOAN
         </button>
@@ -75,8 +75,23 @@
           ✅ MARK AS SERVED
         </button>
         <button id="resetLoanBtn" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 rounded-xl transition text-sm">
-          🗑️ Clear Loan Queue
+          🗑️ Clear Loan Queue Only
         </button>
+        <div class="mt-6 text-center">
+          <a href="agent-portal.html" class="text-magcoop-blue hover:underline text-sm">← Encoding Portal</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Loan Modal -->
+  <div id="addLoanModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+      <h3 class="text-lg font-bold mb-4">Add Loan Applicant</h3>
+      <input type="text" id="loanName" placeholder="Full Name" class="w-full border rounded-lg px-3 py-2 mb-3" />
+      <div class="flex gap-3 mt-5">
+        <button id="cancelLoanBtn" class="flex-1 py-2 border rounded-lg">Cancel</button>
+        <button id="saveLoanBtn" class="flex-1 py-2 bg-purple-600 text-white rounded-lg">Add to Queue</button>
       </div>
     </div>
   </div>
@@ -88,6 +103,7 @@
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let currentServing = null;
     let loanQueue = [];
+    let tokenOffset = 0;
 
     const currentTokenEl = document.getElementById('currentToken');
     const currentNameEl = document.getElementById('currentName');
@@ -98,16 +114,59 @@
     const completeBtn = document.getElementById('completeBtn');
     const resetLoanBtn = document.getElementById('resetLoanBtn');
     const servingCard = document.getElementById('servingCard');
+    const addLoanBtn = document.getElementById('addLoanBtn');
+    const addLoanModal = document.getElementById('addLoanModal');
+    const loanNameInput = document.getElementById('loanName');
+    const cancelLoanBtn = document.getElementById('cancelLoanBtn');
+    const saveLoanBtn = document.getElementById('saveLoanBtn');
 
-    window.addEventListener('DOMContentLoaded', () => {
+    // Modal
+    addLoanBtn.addEventListener('click', () => {
+      addLoanModal.classList.remove('hidden');
+      addLoanModal.classList.add('flex');
+      loanNameInput.value = '';
+      loanNameInput.focus();
+    });
+    cancelLoanBtn.addEventListener('click', () => {
+      addLoanModal.classList.add('hidden');
+      addLoanModal.classList.remove('flex');
+    });
+    saveLoanBtn.addEventListener('click', async () => {
+      const name = loanNameInput.value.trim();
+      if (!name) return alert('Enter name');
+      
+      // Get next loan token
+      const [{ data: q }, { data: c }] = await Promise.all([
+        sb.from("queue").select("token").eq("service", "MAGCOOP Loan"),
+        sb.from("calls").select("token").eq("service", "MAGCOOP Loan")
+      ]);
+      let max = 0;
+      [...(q||[]), ...(c||[])].forEach(r => {
+        const num = parseInt(r.token.replace("MAG-", ""), 10);
+        if (!isNaN(num) && num > max) max = num;
+      });
+      const nextNum = tokenOffset > 0 ? tokenOffset : (max + 1);
+      if (tokenOffset > 0) tokenOffset = 0;
+      const token = `MAG-${nextNum}`;
+      
+      const { count } = await sb.from("queue").select("*", { count: "exact", head: true }).eq("service", "MAGCOOP Loan");
+      await sb.from("queue").insert({
+        token, name, dept: "Loans", service: "MAGCOOP Loan", position: (count || 0) + 1
+      });
+      
+      addLoanModal.classList.add('hidden');
+      addLoanModal.classList.remove('flex');
       loadLoanQueue();
     });
+
+    window.addEventListener('DOMContentLoaded', loadLoanQueue);
 
     async function loadLoanQueue() {
       const { data } = await sb.from('queue').select('*').eq('service', 'MAGCOOP Loan').order('position', { ascending: true });
       loanQueue = data || [];
       waitingCountEl.textContent = loanQueue.length;
       renderLoanQueue();
+      callNextBtn.disabled = loanQueue.length === 0;
     }
 
     function renderLoanQueue() {
@@ -116,43 +175,43 @@
         return;
       }
       loanQueueBody.innerHTML = loanQueue.map((item, idx) => `
-        <tr class="border-b">
+        <tr class="border-b hover:bg-indigo-50">
           <td class="py-3 font-bold text-magcoop-loan">${idx + 1}</td>
-          <td class="py-3">${item.token}</td>
+          <td class="py-3 font-mono">${item.token}</td>
           <td class="py-3">${item.name}</td>
           <td class="py-3 text-center">
-            <button data-id="${item.id}" class="remove-btn text-red-400">✕</button>
+            <button data-id="${item.id}" class="remove-btn text-red-400 hover:text-red-600">✕</button>
           </td>
         </tr>
       `).join('');
       document.querySelectorAll('.remove-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          if(confirm('Remove?')) sb.from('queue').delete().eq('id', btn.dataset.id).then(loadLoanQueue);
+          if(confirm('Remove this loan applicant?')) {
+            sb.from('queue').delete().eq('id', btn.dataset.id).then(loadLoanQueue);
+          }
         });
       });
     }
 
-    // ==============================================
-    // ✅ BULLETPROOF: ALWAYS TRIGGERS ANNOUNCEMENT
-    // ==============================================
+    // Call Next Loan — triggers Public Display
     callNextBtn.addEventListener('click', async () => {
-      if (loanQueue.length === 0) { alert('No one in queue!'); return; }
+      if (loanQueue.length === 0) { alert('No loan customers in queue!'); return; }
       const next = loanQueue[0];
 
-      // Step 1: DELETE all loan calls → clears previous
+      // Clear previous loan → fresh INSERT = guaranteed announcement
       await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
-
-      // Step 2: WAIT 50ms then INSERT → guaranteed fresh INSERT event
+      
       setTimeout(async () => {
         await sb.from('calls').insert({
           token: next.token,
           name: next.name,
           service: 'MAGCOOP Loan',
-          counter: 2
+          counter: 2,
+          status: 'serving'
         });
       }, 50);
 
-      // Step 3: Remove from queue
+      // Remove from queue
       await sb.from('queue').delete().eq('id', next.id);
 
       // Update this screen
@@ -173,7 +232,8 @@
           token: currentServing.token,
           name: currentServing.name,
           service: 'MAGCOOP Loan',
-          counter: 2
+          counter: 2,
+          status: 'serving'
         });
       }, 50);
       servingCard.classList.add('calling');
@@ -181,16 +241,17 @@
     });
 
     completeBtn.addEventListener('click', async () => {
+      if (!currentServing) return;
       await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
       currentServing = null;
       currentTokenEl.textContent = '—';
-      currentNameEl.textContent = 'Waiting for next...';
-      loadLoanQueue();
+      currentNameEl.textContent = 'Waiting for next loan...';
     });
 
     resetLoanBtn.addEventListener('click', async () => {
-      if (!confirm('Clear all?')) return;
+      if (!confirm('Clear ALL loan entries?')) return;
       await sb.from('queue').delete().eq('service', 'MAGCOOP Loan');
+      tokenOffset = 0;
       loadLoanQueue();
     });
   </script>
