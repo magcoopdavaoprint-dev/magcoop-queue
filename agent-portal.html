@@ -11,7 +11,13 @@
     tailwind.config = {
       theme: {
         extend: {
-          colors: { primary: '#2563eb' }
+          colors: { 
+            primary: '#2563eb',
+            magcoop: {
+              blue: '#0b3d91',
+              encoding: '#22c55e'
+            }
+          }
         }
       }
     }
@@ -37,102 +43,126 @@
 <body class="text-slate-800 min-h-screen p-6">
   <div class="max-w-7xl mx-auto">
     <div class="mb-8">
-      <h1 class="text-2xl font-bold text-slate-900">Agent Portal — MAGCOOP DAVAO</h1>
+      <h1 class="text-2xl font-bold text-slate-900">Agent Portal — ENCODING</h1>
       <p class="text-sm mt-1" id="connStatus">Checking connection...</p>
     </div>
+
     <div class="grid grid-cols-1 md:grid-cols-12 gap-5 mb-6">
-      <!-- ✅ UPDATED: RECENTLY SERVED -->
+      <!-- Recently Served -->
       <div class="md:col-span-4 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-        <p class="text-sm text-slate-500 mb-3"><i class="fa-regular fa-clock"></i> Recently Served</p>
+        <p class="text-sm text-slate-500 mb-3"><i class="fa-regular fa-clock"></i> Recently Served — Encoding</p>
         <div id="recentlyServedList" class="max-h-48 overflow-y-auto">
           <p class="text-slate-400 text-sm py-4 text-center">No one served yet</p>
         </div>
       </div>
+
+      <!-- Quick Stats -->
       <div class="md:col-span-4 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
         <h3 class="font-semibold text-slate-700 mb-4">Quick Stats</h3>
         <div class="text-center">
-          <p class="text-3xl font-bold" id="waitingCount">0</p>
-          <p class="text-xs text-slate-500">Waiting</p>
+          <p class="text-3xl font-bold text-magcoop-encoding" id="waitingCount">0</p>
+          <p class="text-xs text-slate-500">Encoding Waiting</p>
         </div>
       </div>
+
+      <!-- Quick Actions -->
       <div class="md:col-span-4 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
         <h3 class="font-semibold text-slate-700 mb-3">Quick Actions</h3>
-        <div class="grid grid-cols-2 gap-2">
-          <button id="addCustomerBtn" class="btn bg-slate-50 hover:bg-slate-100 rounded-lg p-3 text-sm flex flex-col items-center gap-1">
-            <i class="fa-solid fa-user-plus"></i> Add Customer
+        <div class="grid grid-cols-1 gap-2">
+          <button id="addCustomerBtn" class="btn bg-green-50 hover:bg-green-100 rounded-lg p-3 text-sm flex flex-col items-center gap-1 text-green-700">
+            <i class="fa-solid fa-user-plus"></i> Add Encoding Customer
           </button>
           <button onclick="window.open('public-display.html', '_blank')" class="btn bg-slate-50 hover:bg-slate-100 rounded-lg p-3 text-sm flex flex-col items-center gap-1">
-            <i class="fa-solid fa-desktop"></i> Public Display
+            <i class="fa-solid fa-desktop"></i> Open Public Display
+          </button>
+          <button onclick="window.open('head-loan.html', '_blank')" class="btn bg-purple-50 hover:bg-purple-100 rounded-lg p-3 text-sm flex flex-col items-center gap-1 text-purple-700">
+            <i class="fa-solid fa-landmark"></i> 📋 Open Loan Counter
           </button>
         </div>
       </div>
     </div>
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-        <h3 class="font-semibold text-lg mb-2">Counter Selection</h3>
-        <p class="text-sm text-slate-500 mb-4">Choose where customer goes</p>
-        
-        <div class="grid grid-cols-2 gap-3 mb-4">
-          <button id="btnCounter1" class="counter-btn active py-3 rounded-lg font-semibold border-2 border-blue-600">
-            Counter 1
+
+    <!-- Queue Section -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Counter Controls -->
+        <div class="lg:col-span-1">
+          <h3 class="font-semibold text-lg mb-2">Counter Selection</h3>
+          <p class="text-sm text-slate-500 mb-4">Encoding customers only</p>
+          
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <button id="btnCounter1" class="counter-btn active py-3 rounded-lg font-semibold border-2 border-blue-600">
+              Counter 1
+            </button>
+            <button id="btnCounter2" class="counter-btn bg-slate-50 py-3 rounded-lg font-semibold border-2 border-slate-200">
+              Counter 2
+            </button>
+          </div>
+          
+          <div class="bg-green-50 rounded-lg p-4 mb-4">
+            <p class="text-xs text-green-500 uppercase mb-2">Currently Serving — Encoding</p>
+            <p class="text-lg font-semibold" id="nowServing">None</p>
+            <p class="text-sm text-slate-500 mt-1" id="currentServiceLine"></p>
+          </div>
+          
+          <button id="callNextBtn" class="btn w-full bg-green-600 text-white py-3 rounded-lg font-semibold text-lg mb-3" disabled>
+            <i class="fa-solid fa-arrow-right"></i> CALL NEXT ENCODING
           </button>
-          <button id="btnCounter2" class="counter-btn bg-slate-50 py-3 rounded-lg font-semibold border-2 border-slate-200">
-            Counter 2
+          
+          <button id="resetBtn" class="btn w-full bg-red-50 text-red-600 border border-red-200 py-3 rounded-lg font-semibold">
+            <i class="fa-solid fa-rotate-left"></i> RESET ENCODING QUEUE
           </button>
         </div>
-        <div class="bg-slate-50 rounded-lg p-4 mb-4">
-          <p class="text-xs text-slate-400 uppercase mb-2">Currently Serving</p>
-          <p class="text-lg font-semibold" id="nowServing">None</p>
-        </div>
-        <button id="callNextBtn" class="btn w-full bg-blue-600 text-white py-3 rounded-lg font-semibold text-lg mb-3" disabled>
-          <i class="fa-solid fa-arrow-right"></i> CALL NEXT CUSTOMER
-        </button>
-        <button id="resetBtn" class="btn w-full bg-red-50 text-red-600 border border-red-200 py-3 rounded-lg font-semibold">
-          <i class="fa-solid fa-rotate-left"></i> RESET QUEUE — Start from MAG-1
-        </button>
-      </div>
-      <div class="lg:col-span-2 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="font-semibold text-lg">Queue List</h3>
-          <div class="flex gap-3">
+
+        <!-- Queue List -->
+        <div class="lg:col-span-2">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-semibold text-lg">Encoding Queue List</h3>
             <button id="clearBtn" class="text-slate-500 text-sm">Clear All</button>
           </div>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-slate-500 border-b">
+                <th class="pb-2">#</th>
+                <th class="pb-2">Token</th>
+                <th class="pb-2">Name</th>
+                <th class="pb-2"></th>
+              </tr>
+            </thead>
+            <tbody id="queueBody"></tbody>
+          </table>
         </div>
-        <table class="w-full text-sm">
-          <thead><tr class="text-left text-slate-500 border-b">
-            <th class="pb-2">#</th><th class="pb-2">Token</th><th class="pb-2">Name</th><th class="pb-2">Service</th><th class="pb-2"></th>
-          </tr></thead>
-          <tbody id="queueBody"></tbody>
-        </table>
       </div>
     </div>
   </div>
+
+  <!-- Add Customer Modal -->
   <div id="addModal" class="modal-overlay">
     <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
-      <h3 class="text-lg font-bold mb-4">Add New Customer</h3>
+      <h3 class="text-lg font-bold mb-4">Add Encoding Customer</h3>
       <div class="space-y-3">
         <input type="text" id="inpName" placeholder="Full Name" class="w-full border rounded-lg px-3 py-2" />
-        <select id="inpDept" class="w-full border rounded-lg px-3 py-2">
-          <option>Customer Service</option>
-          <option>Accounts</option>
-          <option>Payments</option>
-        </select>
-        <input type="text" id="inpService" placeholder="Service" value="General Inquiry" class="w-full border rounded-lg px-3 py-2" />
+        <input type="text" value="Encoding" readonly class="w-full border rounded-lg px-3 py-2 bg-slate-50 text-slate-500" />
+        <input type="hidden" id="inpService" value="Encoding" />
+        <input type="hidden" id="inpDept" value="Customer Service" />
       </div>
       <div class="flex gap-3 mt-5">
         <button id="btnCancel" class="flex-1 py-2 border rounded-lg">Cancel</button>
-        <button id="btnSave" class="flex-1 py-2 bg-blue-600 text-white rounded-lg">Add to Queue</button>
+        <button id="btnSave" class="flex-1 py-2 bg-green-600 text-white rounded-lg">Add to Queue</button>
       </div>
       <p id="modalNote" class="mt-3 text-sm"></p>
     </div>
   </div>
+
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
+    
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
     let selectedCounter = 1;
     let tokenOffset = 0;
-    
+
     const modal = document.getElementById("addModal");
     function openModal() {
       modal.classList.add("active");
@@ -167,177 +197,140 @@
     btnCounter1.addEventListener("click", () => selectCounter(1));
     btnCounter2.addEventListener("click", () => selectCounter(2));
 
-    // Get Next Token
+    // Get Next Token — Encoding Only
     async function getNextToken() {
-      const { data: q } = await sb.from("queue").select("token");
-      const { data: c } = await sb.from("calls").select("token");
+      const [{ data: q }, { data: c }] = await Promise.all([
+        sb.from("queue").select("token").eq("service", "Encoding"),
+        sb.from("calls").select("token").eq("service", "Encoding")
+      ]);
       
       let max = 0;
-      const allTokens = [...(q||[]), ...(c||[])];
-      allTokens.forEach(r => {
+      [...(q||[]), ...(c||[])].forEach(r => {
         const num = parseInt(r.token.replace("MAG-", ""), 10);
         if (!isNaN(num) && num > max) max = num;
       });
       
       const nextNum = tokenOffset > 0 ? tokenOffset : (max + 1);
       if (tokenOffset > 0) tokenOffset = 0;
-      
       return `MAG-${nextNum}`;
     }
 
+    // Save Encoding Customer
     async function saveCustomer() {
       const name = document.getElementById("inpName").value.trim();
-      const dept = document.getElementById("inpDept").value;
-      const service = document.getElementById("inpService").value.trim() || "General Inquiry";
-      const note = document.getElementById("modalNote");
-      
       if (!name) {
-        note.textContent = "⚠️ Enter a name first";
-        note.style.color = "red";
+        document.getElementById("modalNote").textContent = "⚠️ Enter a name first";
+        document.getElementById("modalNote").style.color = "red";
         return;
       }
       
       try {
         const token = await getNextToken();
-        const { count } = await sb.from("queue").select("*", { count: "exact", head: true });
+        const { count } = await sb.from("queue").select("*", { count: "exact", head: true }).eq("service", "Encoding");
         
-        const { error } = await sb.from("queue").insert({
-          token, name, dept, service, position: (count || 0) + 1
+        await sb.from("queue").insert({
+          token, name, dept: "Customer Service", service: "Encoding", position: (count || 0) + 1
         });
         
-        if (error) throw error;
-        note.textContent = `✅ Added: ${name} — Token ${token}`;
-        note.style.color = "green";
+        document.getElementById("modalNote").textContent = `✅ Added: ${name} — ${token}`;
+        document.getElementById("modalNote").style.color = "green";
         setTimeout(closeModal, 800);
       } catch (err) {
-        note.textContent = `❌ ${err.message}`;
-        note.style.color = "red";
+        document.getElementById("modalNote").textContent = `❌ ${err.message}`;
+        document.getElementById("modalNote").style.color = "red";
       }
     }
 
-    // Call Next — moves previous to finished
+    // Call Next Encoding
     document.getElementById("callNextBtn").addEventListener("click", async () => {
       try {
-        // Mark current as finished
-        const { data: currentServing } = await sb
-          .from("calls")
-          .select("id")
-          .eq("status", "serving")
-          .limit(1);
+        // Mark previous as finished
+        const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
+        if (prev?.length) await sb.from("calls").update({ status: "finished" }).eq("id", prev[0].id);
+
+        // Get next Encoding only
+        const { data: next } = await sb.from("queue").select("*").eq("service", "Encoding").order("position").limit(1);
+        if (!next?.length) { alert("No Encoding customers in queue!"); return; }
         
-        if (currentServing && currentServing.length > 0) {
-          await sb
-            .from("calls")
-            .update({ status: "finished" })
-            .eq("id", currentServing[0].id);
-        }
-        // Get next from queue
-        const { data: nextInQueue, error: queueErr } = await sb
-          .from("queue")
-          .select("*")
-          .order("position", { ascending: true })
-          .limit(1);
-        
-        if (queueErr) throw queueErr;
-        if (!nextInQueue || nextInQueue.length === 0) {
-          alert("No customers in queue!");
-          return;
-        }
-        const nextPerson = nextInQueue[0];
-        await sb.from("queue").delete().eq("id", nextPerson.id);
-        
-        // Send to selected counter
-        const { error: insertErr } = await sb.from("calls").insert({
-          token: nextPerson.token,
-          name: nextPerson.name,
-          service: nextPerson.service,
+        const person = next[0];
+        await sb.from("queue").delete().eq("id", person.id);
+        await sb.from("calls").insert({
+          token: person.token,
+          name: person.name,
+          service: "Encoding",
           counter: selectedCounter,
           status: "serving"
         });
-        if (insertErr) {
-          alert("Database Error: " + insertErr.message);
-          return;
-        }
-      } catch (err) {
-        alert("Error: " + err.message);
-      }
+      } catch (err) { alert("Error: " + err.message); }
     });
 
-    // Reset Queue
+    // Reset Encoding Only
     async function resetQueue() {
-      if (!confirm("⚠️ RESET ALL?\n\nClear queue + history → Start from MAG-1 again.\nThis cannot be undone!")) {
-        return;
-      }
-      try {
-        await sb.from("queue").delete().neq("id", 0);
-        await sb.from("calls").delete().neq("id", 0);
-        tokenOffset = 1;
-        alert("✅ Queue Reset Complete!\n\nNext customer = MAG-1");
-        load();
-      } catch (err) {
-        alert("❌ Reset Error: " + err.message);
-      }
+      if (!confirm("⚠️ Reset Encoding Queue only?\nLoan queue will NOT be affected.")) return;
+      await sb.from("queue").delete().eq("service", "Encoding");
+      await sb.from("calls").delete().eq("service", "Encoding");
+      tokenOffset = 1;
+      alert("✅ Encoding Reset — Next = MAG-1");
+      load();
     }
 
-    // ✅ Load & Render — includes Recently Served
+    // Load Encoding Only
     async function load() {
-      const { data: q } = await sb.from("queue").select("*").order("position");
-      const { data: s } = await sb.from("calls").select("*").eq("status","serving").limit(1);
-      // Get last 5 finished — newest first
-      const { data: finished } = await sb
-        .from("calls")
-        .select("*")
-        .eq("status","finished")
-        .order("id", { ascending: false })
-        .limit(5);
-      
-      // Waiting count & button
+      const [{ data: q }, { data: serving }, { data: done }] = await Promise.all([
+        sb.from("queue").select("*").eq("service", "Encoding").order("position"),
+        sb.from("calls").select("*").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1),
+        sb.from("calls").select("*").eq("service", "Encoding").eq("status", "finished").order("id", { ascending: false }).limit(5)
+      ]);
+
       document.getElementById("waitingCount").textContent = q?.length || 0;
       document.getElementById("callNextBtn").disabled = !q?.length;
-      
-      // Queue list
+
+      // Queue List
       const body = document.getElementById("queueBody");
-      body.innerHTML = "";
-      if (q && q.length > 0) {
-        q.forEach((row, i) => {
-          body.innerHTML += `<tr class="border-b"><td class="py-2">${i+1}</td><td class="py-2"><span class="token-badge">${row.token}</span></td><td class="py-2">${row.name}</td><td class="py-2">${row.service}</td><td class="py-2 text-red-500 cursor-pointer" data-id="${row.id}">✕</td></tr>`;
-        });
+      if (!q?.length) {
+        body.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-400">No encoding customers waiting</td></tr>`;
+      } else {
+        body.innerHTML = q.map((r, i) => `
+          <tr class="border-b">
+            <td class="py-2">${i+1}</td>
+            <td class="py-2"><span class="token-badge">${r.token}</span></td>
+            <td class="py-2">${r.name}</td>
+            <td class="py-2 text-red-500 cursor-pointer" data-id="${r.id}">✕</td>
+          </tr>`).join("");
         body.querySelectorAll("[data-id]").forEach(b => {
           b.addEventListener("click", async () => {
-            if (confirm("Remove this customer?")) {
-              await sb.from("queue").delete().eq("id", b.dataset.id);
-            }
+            if (confirm("Remove?")) await sb.from("queue").delete().eq("id", b.dataset.id);
           });
         });
       }
-      
+
       // Now Serving
-      if (s?.length) {
-        document.getElementById("nowServing").textContent = `${s[0].token} — ${s[0].name}`;
+      if (serving?.length) {
+        document.getElementById("nowServing").textContent = `${serving[0].token} — ${serving[0].name}`;
+        document.getElementById("currentServiceLine").textContent = `Counter ${serving[0].counter}`;
       } else {
         document.getElementById("nowServing").textContent = "None";
+        document.getElementById("currentServiceLine").textContent = "";
       }
-      
-      // ✅ Recently Served List
-      const servedList = document.getElementById("recentlyServedList");
-      if (finished && finished.length > 0) {
-        servedList.innerHTML = finished.map(row => `
-          <div class="served-item">
-            <p class="font-semibold text-sm">${row.token}</p>
-            <p class="text-xs text-slate-500">${row.name} · Counter ${row.counter}</p>
-          </div>
-        `).join("");
+
+      // Recently Served
+      const list = document.getElementById("recentlyServedList");
+      if (!done?.length) {
+        list.innerHTML = `<p class="text-slate-400 text-sm py-4 text-center">No one served yet</p>`;
       } else {
-        servedList.innerHTML = '<p class="text-slate-400 text-sm py-4 text-center">No one served yet</p>';
+        list.innerHTML = done.map(r => `
+          <div class="served-item">
+            <p class="font-semibold text-sm">${r.token}</p>
+            <p class="text-xs text-slate-500">${r.name} · Counter ${r.counter}</p>
+          </div>`).join("");
       }
     }
 
     async function clearAll() {
-      if (!confirm("Clear waiting customers only?")) return;
-      await sb.from("queue").delete().neq("id", 0);
+      if (!confirm("Clear all Encoding customers?")) return;
+      await sb.from("queue").delete().eq("service", "Encoding");
     }
 
-    // Realtime updates
     sb.channel("q")
       .on("postgres_changes", { event: "*", schema: "public", table: "queue" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "calls" }, load)
@@ -346,11 +339,10 @@
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
-        document.getElementById("connStatus").textContent = "✅ Connected to Supabase";
+        document.getElementById("connStatus").textContent = "✅ Connected";
         document.getElementById("connStatus").style.color = "green";
       } catch (e) {
-        document.getElementById("connStatus").textContent = "❌ Connection failed: " + e.message;
-        document.getElementById("connStatus").style.color = "red";
+        document.getElementById("connStatus").textContent = "❌ Connection failed";
       }
       load();
     })();
