@@ -23,6 +23,14 @@
       50% { transform: scale(1.03); box-shadow: 0 0 20px 10px rgba(139, 92, 246, 0.2); }
       100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
     }
+    /* Highlight newly added row */
+    .queue-row-new {
+      animation: highlightFade 2s ease;
+    }
+    @keyframes highlightFade {
+      0% { background-color: #fef3c7; }
+      100% { background-color: transparent; }
+    }
   </style>
 </head>
 <body class="p-4 md:p-8">
@@ -99,6 +107,7 @@
     let currentServing = null;
     let loanQueue = [];
     let tokenOffset = 0;
+    let latestKnownId = 0; // Track newest entry for highlight
 
     const currentTokenEl = document.getElementById('currentToken');
     const currentNameEl = document.getElementById('currentName');
@@ -119,7 +128,7 @@
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
-        connStatus.textContent = "✅ ONLINE LIVE — Connected";
+        connStatus.textContent = "✅ LIVE — Auto-updating";
         connStatus.style.color = "#86efac";
       } catch (e) {
         connStatus.textContent = "❌ OFFLINE — Check Internet";
@@ -163,7 +172,6 @@
       
       addLoanModal.classList.add('hidden');
       addLoanModal.classList.remove('flex');
-      loadLoanQueue();
     });
 
     window.addEventListener('DOMContentLoaded', loadLoanQueue);
@@ -172,6 +180,12 @@
       const { data } = await sb.from('queue').select('*').eq('service', 'MAGCOOP Loan').order('position', { ascending: true });
       loanQueue = data || [];
       waitingCountEl.textContent = loanQueue.length;
+      
+      // Update latest ID for new-row highlight
+      if (loanQueue.length > 0) {
+        latestKnownId = Math.max(...loanQueue.map(i => i.id || 0));
+      }
+      
       renderLoanQueue();
       callNextBtn.disabled = loanQueue.length === 0;
     }
@@ -181,21 +195,24 @@
         loanQueueBody.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-gray-400">No loan applications in queue</td></tr>`;
         return;
       }
-      loanQueueBody.innerHTML = loanQueue.map((item, idx) => `
-        <tr class="border-b hover:bg-indigo-50">
-          <td class="py-3 font-bold text-magcoop-loan">${idx + 1}</td>
-          <td class="py-3 font-mono">${item.token}</td>
-          <td class="py-3">${item.name}</td>
-          <td class="py-3 text-center">
-            <button data-id="${item.id}" class="remove-btn text-red-400 hover:text-red-600">✕</button>
-          </td>
-        </tr>
-      `).join('');
+      loanQueueBody.innerHTML = loanQueue.map((item, idx) => {
+        const isNew = item.id && latestKnownId && item.id === latestKnownId;
+        return `
+          <tr class="border-b hover:bg-indigo-50 ${isNew ? 'queue-row-new' : ''}">
+            <td class="py-3 font-bold text-magcoop-loan">${idx + 1}</td>
+            <td class="py-3 font-mono">${item.token}</td>
+            <td class="py-3">${item.name}</td>
+            <td class="py-3 text-center">
+              <button data-id="${item.id}" class="remove-btn text-red-400 hover:text-red-600">✕</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      
       document.querySelectorAll('.remove-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
           if(confirm('Remove this loan applicant?')) {
             await sb.from('queue').delete().eq('id', btn.dataset.id);
-            loadLoanQueue();
           }
         });
       });
@@ -228,8 +245,6 @@
       currentNameEl.textContent = next.name.toUpperCase();
       servingCard.classList.add('calling');
       setTimeout(() => servingCard.classList.remove('calling'), 3000);
-
-      loadLoanQueue();
     });
 
     // ✅ CLEAR CURRENT DISPLAY — removes name from TV instantly
@@ -251,9 +266,15 @@
       currentTokenEl.textContent = '—';
       currentNameEl.textContent = 'Waiting for next loan...';
       tokenOffset = 1;
-      loadLoanQueue();
       alert('✅ Reset Complete — Next will be MAG-1');
     });
+
+    // 🔴 LIVE AUTO-REFRESH — REAL-TIME SUBSCRIPTION
+    sb.channel('loan-queue-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue', filter: 'service=eq.MAGCOOP Loan' }, payload => {
+        loadLoanQueue(); // Instant update on any change
+      })
+      .subscribe();
   </script>
 </body>
 </html>
