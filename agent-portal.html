@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Agent Portal — MAGCOOP DAVAO</title>
+  <title>Agent Portal — ENCODING</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -26,7 +26,16 @@
     body { font-family: 'Inter', sans-serif; background: #fcfcfd; }
     .btn { cursor: pointer; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .token-badge { background: #ecfdf3; color: #065f46; font-family: monospace; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
+    .token-badge { 
+      background: #ecfdf3; 
+      color: #065f46; 
+      font-family: monospace; 
+      font-weight: 600; 
+      padding: 4px 10px; 
+      border-radius: 6px; 
+      font-size: 1rem;
+      letter-spacing: 0.05em;
+    }
     .modal-overlay {
       position: fixed; inset: 0;
       background: rgba(0,0,0,0.4);
@@ -46,7 +55,6 @@
       <h1 class="text-2xl font-bold text-slate-900">Agent Portal — ENCODING</h1>
       <p class="text-sm mt-1" id="connStatus">Checking connection...</p>
     </div>
-
     <div class="grid grid-cols-1 md:grid-cols-12 gap-5 mb-6">
       <!-- Recently Served -->
       <div class="md:col-span-4 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
@@ -55,7 +63,6 @@
           <p class="text-slate-400 text-sm py-4 text-center">No one served yet</p>
         </div>
       </div>
-
       <!-- Quick Stats -->
       <div class="md:col-span-4 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
         <h3 class="font-semibold text-slate-700 mb-4">Quick Stats</h3>
@@ -64,7 +71,6 @@
           <p class="text-xs text-slate-500">Encoding Waiting</p>
         </div>
       </div>
-
       <!-- Quick Actions -->
       <div class="md:col-span-4 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
         <h3 class="font-semibold text-slate-700 mb-3">Quick Actions</h3>
@@ -81,7 +87,6 @@
         </div>
       </div>
     </div>
-
     <!-- Queue Section -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -113,7 +118,6 @@
             <i class="fa-solid fa-rotate-left"></i> RESET ENCODING QUEUE
           </button>
         </div>
-
         <!-- Queue List -->
         <div class="lg:col-span-2">
           <div class="flex justify-between items-center mb-4">
@@ -135,7 +139,6 @@
       </div>
     </div>
   </div>
-
   <!-- Add Customer Modal -->
   <div id="addModal" class="modal-overlay">
     <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
@@ -153,7 +156,6 @@
       <p id="modalNote" class="mt-3 text-sm"></p>
     </div>
   </div>
-
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
@@ -162,8 +164,13 @@
     
     let selectedCounter = 1;
     let tokenOffset = 0;
-
     const modal = document.getElementById("addModal");
+    
+    // ✅ Format number → E001, E002...
+    function formatEncodingToken(num) {
+      return `E${String(num).padStart(3, '0')}`;
+    }
+    
     function openModal() {
       modal.classList.add("active");
       document.getElementById("inpName").value = "";
@@ -176,7 +183,7 @@
     document.getElementById("btnSave").addEventListener("click", saveCustomer);
     document.getElementById("clearBtn").addEventListener("click", clearAll);
     document.getElementById("resetBtn").addEventListener("click", resetQueue);
-
+    
     // Counter Selection
     const btnCounter1 = document.getElementById("btnCounter1");
     const btnCounter2 = document.getElementById("btnCounter2");
@@ -196,8 +203,8 @@
     }
     btnCounter1.addEventListener("click", () => selectCounter(1));
     btnCounter2.addEventListener("click", () => selectCounter(2));
-
-    // Get Next Token — Encoding Only
+    
+    // Get Next Token — E001, E002...
     async function getNextToken() {
       const [{ data: q }, { data: c }] = await Promise.all([
         sb.from("queue").select("token").eq("service", "Encoding"),
@@ -206,15 +213,21 @@
       
       let max = 0;
       [...(q||[]), ...(c||[])].forEach(r => {
-        const num = parseInt(r.token.replace("MAG-", ""), 10);
+        // Extract number whether stored as "E001" or old "MAG-1"
+        let num;
+        if (r.token.startsWith("E")) {
+          num = parseInt(r.token.replace("E", ""), 10);
+        } else {
+          num = parseInt(r.token.replace("MAG-", ""), 10);
+        }
         if (!isNaN(num) && num > max) max = num;
       });
       
       const nextNum = tokenOffset > 0 ? tokenOffset : (max + 1);
       if (tokenOffset > 0) tokenOffset = 0;
-      return `MAG-${nextNum}`;
+      return formatEncodingToken(nextNum);
     }
-
+    
     // Save Encoding Customer
     async function saveCustomer() {
       const name = document.getElementById("inpName").value.trim();
@@ -240,14 +253,13 @@
         document.getElementById("modalNote").style.color = "red";
       }
     }
-
+    
     // Call Next Encoding
     document.getElementById("callNextBtn").addEventListener("click", async () => {
       try {
         // Mark previous as finished
         const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
         if (prev?.length) await sb.from("calls").update({ status: "finished" }).eq("id", prev[0].id);
-
         // Get next Encoding only
         const { data: next } = await sb.from("queue").select("*").eq("service", "Encoding").order("position").limit(1);
         if (!next?.length) { alert("No Encoding customers in queue!"); return; }
@@ -263,17 +275,17 @@
         });
       } catch (err) { alert("Error: " + err.message); }
     });
-
+    
     // Reset Encoding Only
     async function resetQueue() {
-      if (!confirm("⚠️ Reset Encoding Queue only?\nLoan queue will NOT be affected.")) return;
+      if (!confirm("⚠️ Reset Encoding Queue only?\nLoan queue will NOT be affected.\n\nNext Encoding = E001")) return;
       await sb.from("queue").delete().eq("service", "Encoding");
       await sb.from("calls").delete().eq("service", "Encoding");
       tokenOffset = 1;
-      alert("✅ Encoding Reset — Next = MAG-1");
+      alert("✅ Encoding Reset — Next = E001");
       load();
     }
-
+    
     // Load Encoding Only
     async function load() {
       const [{ data: q }, { data: serving }, { data: done }] = await Promise.all([
@@ -281,10 +293,9 @@
         sb.from("calls").select("*").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1),
         sb.from("calls").select("*").eq("service", "Encoding").eq("status", "finished").order("id", { ascending: false }).limit(5)
       ]);
-
       document.getElementById("waitingCount").textContent = q?.length || 0;
       document.getElementById("callNextBtn").disabled = !q?.length;
-
+      
       // Queue List
       const body = document.getElementById("queueBody");
       if (!q?.length) {
@@ -303,7 +314,7 @@
           });
         });
       }
-
+      
       // Now Serving
       if (serving?.length) {
         document.getElementById("nowServing").textContent = `${serving[0].token} — ${serving[0].name}`;
@@ -312,7 +323,7 @@
         document.getElementById("nowServing").textContent = "None";
         document.getElementById("currentServiceLine").textContent = "";
       }
-
+      
       // Recently Served
       const list = document.getElementById("recentlyServedList");
       if (!done?.length) {
@@ -325,17 +336,17 @@
           </div>`).join("");
       }
     }
-
+    
     async function clearAll() {
       if (!confirm("Clear all Encoding customers?")) return;
       await sb.from("queue").delete().eq("service", "Encoding");
     }
-
+    
     sb.channel("q")
       .on("postgres_changes", { event: "*", schema: "public", table: "queue" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "calls" }, load)
       .subscribe();
-
+    
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
