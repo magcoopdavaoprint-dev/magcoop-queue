@@ -28,6 +28,7 @@
       0% { background-color: #fef3c7; }
       100% { background-color: transparent; }
     }
+    .token-badge { font-family: monospace; letter-spacing: 0.05em; }
   </style>
 </head>
 <body class="p-4 md:p-8">
@@ -39,7 +40,7 @@
     </div>
 
     <div class="bg-white rounded-3xl shadow-2xl p-8 mb-8 text-center" id="servingCard">
-      <h2 class="text-7xl font-bold text-magcoop-loan mb-4" id="currentToken">—</h2>
+      <h2 class="text-7xl font-bold text-magcoop-loan mb-4 token-badge" id="currentToken">—</h2>
       <p class="text-3xl text-gray-700 font-semibold" id="currentName">Waiting for next loan...</p>
     </div>
 
@@ -118,6 +119,12 @@
     const saveLoanBtn = document.getElementById('saveLoanBtn');
     const connStatus = document.getElementById('connStatus');
 
+    // ✅ Format number → L001, L002...
+    function formatLoanToken(num) {
+      return `L${String(num).padStart(3, '0')}`;
+    }
+
+    // Connection status
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
@@ -139,6 +146,7 @@
       addLoanModal.classList.add('hidden');
       addLoanModal.classList.remove('flex');
     });
+
     saveLoanBtn.addEventListener('click', async () => {
       const name = loanNameInput.value.trim();
       if (!name) return alert('Enter name');
@@ -147,14 +155,22 @@
         sb.from("queue").select("token").eq("service", "MAGCOOP Loan"),
         sb.from("calls").select("token").eq("service", "MAGCOOP Loan")
       ]);
+      
       let max = 0;
       [...(q||[]), ...(c||[])].forEach(r => {
-        const num = parseInt(r.token.replace("MAG-", ""), 10);
+        // Extract number whether stored as "L001" or old "MAG-1"
+        let num;
+        if (r.token.startsWith("L")) {
+          num = parseInt(r.token.replace("L", ""), 10);
+        } else {
+          num = parseInt(r.token.replace("MAG-", ""), 10);
+        }
         if (!isNaN(num) && num > max) max = num;
       });
+      
       const nextNum = tokenOffset > 0 ? tokenOffset : (max + 1);
       if (tokenOffset > 0) tokenOffset = 0;
-      const token = `MAG-${nextNum}`;
+      const token = formatLoanToken(nextNum);
       
       const { count } = await sb.from("queue").select("*", { count: "exact", head: true }).eq("service", "MAGCOOP Loan");
       await sb.from("queue").insert({
@@ -190,7 +206,7 @@
         return `
           <tr class="border-b hover:bg-indigo-50 ${isNew ? 'queue-row-new' : ''}">
             <td class="py-3 font-bold text-magcoop-loan">${idx + 1}</td>
-            <td class="py-3 font-mono">${item.token}</td>
+            <td class="py-3 font-mono token-badge">${item.token}</td>
             <td class="py-3">${item.name}</td>
             <td class="py-3 text-center">
               <button data-id="${item.id}" class="remove-btn text-red-400 hover:text-red-600">✕</button>
@@ -208,7 +224,7 @@
       });
     }
 
-    // ✅ FIXED: CALL NEXT — REMOVE FROM LIST INSTANTLY
+    // ✅ CALL NEXT — REMOVE FROM LIST INSTANTLY
     callNextBtn.addEventListener('click', async () => {
       if (loanQueue.length === 0) { alert('No loan customers in queue!'); return; }
       
@@ -255,14 +271,15 @@
     });
 
     resetLoanBtn.addEventListener('click', async () => {
-      if (!confirm('⚠️ RESET ALL LOAN DATA?\n\nClear queue + clear display\nNext = MAG-1')) return;
+      if (!confirm('⚠️ RESET ALL LOAN DATA?\n\nClear queue + clear display\nNext = L001')) return;
       await sb.from('queue').delete().eq('service', 'MAGCOOP Loan');
       await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
       currentServing = null;
       currentTokenEl.textContent = '—';
       currentNameEl.textContent = 'Waiting for next loan...';
       tokenOffset = 1;
-      alert('✅ Reset Complete — Next will be MAG-1');
+      alert('✅ Reset Complete — Next will be L001');
+      loadLoanQueue();
     });
 
     // 🔴 LIVE REAL-TIME — catches new additions from join form
