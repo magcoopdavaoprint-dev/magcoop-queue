@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Agent Portal — ENCODING</title>
+  <title>Magcoop Portal - Encoding</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -12,10 +12,11 @@
       theme: {
         extend: {
           colors: { 
-            primary: '#2563eb',
+            primary: '#0b3d91',
             magcoop: {
               blue: '#0b3d91',
-              encoding: '#22c55e'
+              yellow: '#f5ce00',
+              green: '#22c55e'
             }
           }
         }
@@ -23,17 +24,16 @@
     }
   </script>
   <style>
-    /* Only background changed to match loan purple gradient */
     body { 
       font-family: 'Inter', sans-serif; 
-      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); 
+      background: linear-gradient(135deg, #0b3d91 0%, #1e50b8 100%); 
       min-height: 100vh;
     }
     .btn { cursor: pointer; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .token-badge { 
-      background: #ecfdf3; 
-      color: #065f46; 
+      background: #e6f0ff; 
+      color: #0b3d91; 
       font-family: monospace; 
       font-weight: 600; 
       padding: 4px 10px; 
@@ -49,7 +49,7 @@
     }
     .modal-overlay.active { display: flex; }
     .counter-btn { transition: all 0.2s ease; }
-    .counter-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+    .counter-btn.active { background: #0b3d91; color: white; border-color: #0b3d91; }
     .served-item { border-bottom: 1px solid #f1f5f9; padding: 6px 0; }
     .served-item:last-child { border-bottom: none; }
   </style>
@@ -57,8 +57,12 @@
 <body class="text-slate-800 min-h-screen p-6">
   <div class="max-w-7xl mx-auto">
     <div class="mb-8">
-      <h1 class="text-2xl font-bold text-slate-900">Agent Portal — ENCODING</h1>
-      <p class="text-sm mt-1" id="connStatus">Checking connection...</p>
+      <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+        <span class="text-magcoop-blue bg-white px-3 py-1 rounded">MAG</span>
+        <span class="text-magcoop-yellow bg-white px-3 py-1 rounded">COOP</span>
+        <span class="text-white ml-2">Portal - Encoding</span>
+      </h1>
+      <p class="text-sm mt-1 text-blue-100" id="connStatus">Checking connection...</p>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-12 gap-5 mb-6">
       <!-- Recently Served -->
@@ -72,7 +76,7 @@
       <div class="md:col-span-4 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
         <h3 class="font-semibold text-slate-700 mb-4">Quick Stats</h3>
         <div class="text-center">
-          <p class="text-3xl font-bold text-magcoop-encoding" id="waitingCount">0</p>
+          <p class="text-3xl font-bold text-magcoop-blue" id="waitingCount">0</p>
           <p class="text-xs text-slate-500">Encoding Waiting</p>
         </div>
       </div>
@@ -80,13 +84,13 @@
       <div class="md:col-span-4 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
         <h3 class="font-semibold text-slate-700 mb-3">Quick Actions</h3>
         <div class="grid grid-cols-1 gap-2">
-          <button id="addCustomerBtn" class="btn bg-green-50 hover:bg-green-100 rounded-lg p-3 text-sm flex flex-col items-center gap-1 text-green-700">
+          <button id="addCustomerBtn" class="btn bg-magcoop-blue hover:bg-blue-800 text-white rounded-lg p-3 text-sm flex flex-col items-center gap-1">
             <i class="fa-solid fa-user-plus"></i> Add Encoding Customer
           </button>
           <button onclick="window.open('public-display.html', '_blank')" class="btn bg-slate-50 hover:bg-slate-100 rounded-lg p-3 text-sm flex flex-col items-center gap-1">
             <i class="fa-solid fa-desktop"></i> Open Public Display
           </button>
-          <button onclick="window.open('head-loan.html', '_blank')" class="btn bg-purple-50 hover:bg-purple-100 rounded-lg p-3 text-sm flex flex-col items-center gap-1 text-purple-700">
+          <button onclick="window.open('head-loan.html', '_blank')" class="btn bg-magcoop-yellow hover:bg-yellow-400 text-slate-800 rounded-lg p-3 text-sm flex flex-col items-center gap-1">
             <i class="fa-solid fa-landmark"></i> 📋 Open Loan Counter
           </button>
         </div>
@@ -94,14 +98,14 @@
     </div>
     <!-- Queue Section -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 lg:col-span-3 gap-6">
         <!-- Counter Controls -->
         <div class="lg:col-span-1">
           <h3 class="font-semibold text-lg mb-2">Counter Selection</h3>
           <p class="text-sm text-slate-500 mb-4">Encoding customers only</p>
           
           <div class="grid grid-cols-2 gap-3 mb-4">
-            <button id="btnCounter1" class="counter-btn active py-3 rounded-lg font-semibold border-2 border-blue-600">
+            <button id="btnCounter1" class="counter-btn active py-3 rounded-lg font-semibold border-2 border-magcoop-blue">
               Counter 1
             </button>
             <button id="btnCounter2" class="counter-btn bg-slate-50 py-3 rounded-lg font-semibold border-2 border-slate-200">
@@ -109,13 +113,13 @@
             </button>
           </div>
           
-          <div class="bg-green-50 rounded-lg p-4 mb-4">
-            <p class="text-xs text-green-500 uppercase mb-2">Currently Serving — Encoding</p>
-            <p class="text-lg font-semibold" id="nowServing">None</p>
+          <div class="bg-blue-50 rounded-lg p-4 mb-4">
+            <p class="text-xs text-magcoop-blue uppercase mb-2">Currently Serving — Encoding</p>
+            <p class="text-lg font-semibold text-magcoop-blue" id="nowServing">None</p>
             <p class="text-sm text-slate-500 mt-1" id="currentServiceLine"></p>
           </div>
           
-          <button id="callNextBtn" class="btn w-full bg-green-600 text-white py-3 rounded-lg font-semibold text-lg mb-3" disabled>
+          <button id="callNextBtn" class="btn w-full bg-magcoop-yellow hover:bg-yellow-400 text-slate-800 py-3 rounded-lg font-semibold text-lg mb-3" disabled>
             <i class="fa-solid fa-arrow-right"></i> CALL NEXT ENCODING
           </button>
           
@@ -147,7 +151,7 @@
   <!-- Add Customer Modal -->
   <div id="addModal" class="modal-overlay">
     <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
-      <h3 class="text-lg font-bold mb-4">Add Encoding Customer</h3>
+      <h3 class="text-lg font-bold mb-4 text-magcoop-blue">Add Encoding Customer</h3>
       <div class="space-y-3">
         <input type="text" id="inpName" placeholder="Full Name" class="w-full border rounded-lg px-3 py-2" />
         <input type="text" value="Encoding" readonly class="w-full border rounded-lg px-3 py-2 bg-slate-50 text-slate-500" />
@@ -155,8 +159,8 @@
         <input type="hidden" id="inpDept" value="Customer Service" />
       </div>
       <div class="flex gap-3 mt-5">
-        <button id="btnCancel" class="flex-1 py-2 border rounded-lg">Cancel</button>
-        <button id="btnSave" class="flex-1 py-2 bg-green-600 text-white rounded-lg">Add to Queue</button>
+        <button id="btnCancel" class="flex-1 py-2 border rounded-lg">Cancel</option>
+        <button id="btnSave" class="flex-1 py-2 bg-magcoop-blue text-white rounded-lg">Add to Queue</button>
       </div>
       <p id="modalNote" class="mt-3 text-sm"></p>
     </div>
@@ -171,7 +175,6 @@
     let tokenOffset = 0;
     const modal = document.getElementById("addModal");
     
-    // ✅ Format number → E001, E002...
     function formatEncodingToken(num) {
       return `E${String(num).padStart(3, '0')}`;
     }
@@ -182,34 +185,36 @@
       document.getElementById("modalNote").textContent = "";
       setTimeout(() => document.getElementById("inpName").focus(), 50);
     }
+    
     function closeModal() { modal.classList.remove("active"); }
+    
     document.getElementById("addCustomerBtn").addEventListener("click", openModal);
     document.getElementById("btnCancel").addEventListener("click", closeModal);
     document.getElementById("btnSave").addEventListener("click", saveCustomer);
     document.getElementById("clearBtn").addEventListener("click", clearAll);
     document.getElementById("resetBtn").addEventListener("click", resetQueue);
     
-    // Counter Selection
     const btnCounter1 = document.getElementById("btnCounter1");
     const btnCounter2 = document.getElementById("btnCounter2");
+    
     function selectCounter(num) {
       selectedCounter = num;
       if (num === 1) {
-        btnCounter1.classList.add("active", "border-blue-600");
+        btnCounter1.classList.add("active", "border-magcoop-blue");
         btnCounter1.classList.remove("bg-slate-50", "border-slate-200");
-        btnCounter2.classList.remove("active", "border-blue-600");
+        btnCounter2.classList.remove("active", "border-magcoop-blue");
         btnCounter2.classList.add("bg-slate-50", "border-slate-200");
       } else {
-        btnCounter2.classList.add("active", "border-blue-600");
+        btnCounter2.classList.add("active", "border-magcoop-blue");
         btnCounter2.classList.remove("bg-slate-50", "border-slate-200");
-        btnCounter1.classList.remove("active", "border-blue-600");
+        btnCounter1.classList.remove("active", "border-magcoop-blue");
         btnCounter1.classList.add("bg-slate-50", "border-slate-200");
       }
     }
+    
     btnCounter1.addEventListener("click", () => selectCounter(1));
     btnCounter2.addEventListener("click", () => selectCounter(2));
     
-    // Get Next Token — E001, E002...
     async function getNextToken() {
       const [{ data: q }, { data: c }] = await Promise.all([
         sb.from("queue").select("token").eq("service", "Encoding"),
@@ -218,7 +223,6 @@
       
       let max = 0;
       [...(q||[]), ...(c||[])].forEach(r => {
-        // Extract number whether stored as "E001" or old "MAG-1"
         let num;
         if (r.token.startsWith("E")) {
           num = parseInt(r.token.replace("E", ""), 10);
@@ -233,7 +237,6 @@
       return formatEncodingToken(nextNum);
     }
     
-    // Save Encoding Customer
     async function saveCustomer() {
       const name = document.getElementById("inpName").value.trim();
       if (!name) {
@@ -244,10 +247,10 @@
       
       try {
         const token = await getNextToken();
-        const { count } = await sb.from("queue").select("*", { count: "exact", head: true }).eq("service", "Encoding");
+        const { count } = sb.from("queue").select("*", { count: "exact", head: true }).eq("service", "Encoding");
         
         await sb.from("queue").insert({
-          token, name, dept: "Customer Service", service: "Encoding", position: (count || 0) + 1
+          token, name, dept: "NAME", dept: "Customer Service", service: "Encoding", position: (count || 0) + 1
         });
         
         document.getElementById("modalNote").textContent = `✅ Added: ${name} — ${token}`;
@@ -259,13 +262,10 @@
       }
     }
     
-    // Call Next Encoding
     document.getElementById("callNextBtn").addEventListener("click", async () => {
       try {
-        // Mark previous as finished
         const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
         if (prev?.length) await sb.from("calls").update({ status: "finished" }).eq("id", prev[0].id);
-        // Get next Encoding only
         const { data: next } = await sb.from("queue").select("*").eq("service", "Encoding").order("position").limit(1);
         if (!next?.length) { alert("No Encoding customers in queue!"); return; }
         
@@ -281,7 +281,6 @@
       } catch (err) { alert("Error: " + err.message); }
     });
     
-    // Reset Encoding Only
     async function resetQueue() {
       if (!confirm("⚠️ Reset Encoding Queue only?\nLoan queue will NOT be affected.\n\nNext Encoding = E001")) return;
       await sb.from("queue").delete().eq("service", "Encoding");
@@ -291,7 +290,6 @@
       load();
     }
     
-    // Load Encoding Only
     async function load() {
       const [{ data: q }, { data: serving }, { data: done }] = await Promise.all([
         sb.from("queue").select("*").eq("service", "Encoding").order("position"),
@@ -301,15 +299,14 @@
       document.getElementById("waitingCount").textContent = q?.length || 0;
       document.getElementById("callNextBtn").disabled = !q?.length;
       
-      // Queue List
       const body = document.getElementById("queueBody");
       if (!q?.length) {
-        body.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-400">No encoding customers waiting</td></tr>`;
+        body.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-400">No Encoding customers waiting</td></tr>`;
       } else {
         body.innerHTML = q.map((r, i) => `
           <tr class="border-b">
             <td class="py-2">${i+1}</td>
-            <td class="py-2"><span class="token-badge">${r.token}</span></td>
+            <td class="py-2"><span class="token-badge">${r.token}</td>
             <td class="py-2">${r.name}</td>
             <td class="py-2 text-red-500 cursor-pointer" data-id="${r.id}">✕</td>
           </tr>`).join("");
@@ -320,7 +317,6 @@
         });
       }
       
-      // Now Serving
       if (serving?.length) {
         document.getElementById("nowServing").textContent = `${serving[0].token} — ${serving[0].name}`;
         document.getElementById("currentServiceLine").textContent = `Counter ${serving[0].counter}`;
@@ -329,7 +325,6 @@
         document.getElementById("currentServiceLine").textContent = "";
       }
       
-      // Recently Served
       const list = document.getElementById("recentlyServedList");
       if (!done?.length) {
         list.innerHTML = `<p class="text-slate-400 text-sm py-4 text-center">No one served yet</p>`;
