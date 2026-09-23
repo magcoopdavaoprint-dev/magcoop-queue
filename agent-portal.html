@@ -52,9 +52,32 @@
     .counter-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
     .served-item { border-bottom: 1px solid #f1f5f9; padding: 6px 0; }
     .served-item:last-child { border-bottom: none; }
+    /* === PiP Button === */
+    .pip-btn {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 100;
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pip-btn:hover { background: rgba(255,255,255,0.3); }
   </style>
 </head>
 <body class="text-slate-800 min-h-screen p-4 md:p-6">
+  <!-- 🎬 PICTURE-IN-PICTURE BUTTON -->
+  <button id="pipBtn" class="pip-btn">🎬 PiP Queue</button>
+
+  <!-- Hidden video for PiP -->
+  <video id="pipVideo" style="display:none;" muted playsinline></video>
+
   <div class="max-w-7xl mx-auto">
     <!-- Header -->
     <div class="mb-6">
@@ -93,7 +116,7 @@
       </div>
     </div>
 
-    <!-- Main: Counter Controls + Queue List SIDE BY SIDE -->
+    <!-- Main: Counter Controls + Queue List -->
     <div class="bg-white rounded-xl shadow-sm p-5">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- LEFT: Counter Controls -->
@@ -110,7 +133,7 @@
             </button>
           </div>
           
-          <div class="bg-green-50 rounded-lg p-4 mb-4">
+          <div class="bg-green-50 rounded-lg p-4 mb-4" id="pipNowServing">
             <p class="text-xs text-green-500 uppercase mb-1">Currently Serving — Encoding</p>
             <p class="text-lg font-semibold" id="nowServing">None</p>
             <p class="text-sm text-slate-500 mt-1" id="currentServiceLine"></p>
@@ -125,8 +148,8 @@
           </button>
         </div>
 
-        <!-- RIGHT: Queue List — FULLY VISIBLE, NO SCROLL -->
-        <div class="md:col-span-2">
+        <!-- RIGHT: Queue List -->
+        <div class="md:col-span-2" id="pipQueueSection">
           <div class="flex justify-between items-center mb-3">
             <h3 class="font-semibold text-lg">Encoding Queue List</h3>
             <button id="clearBtn" class="text-slate-500 text-sm hover:text-red-500">Clear All</button>
@@ -178,7 +201,38 @@
     let selectedCounter = 1;
     let tokenOffset = 0;
     const modal = document.getElementById("addModal");
-    
+    const pipBtn = document.getElementById("pipBtn");
+    const pipVideo = document.getElementById("pipVideo");
+
+    // 🎬 PICTURE-IN-PICTURE — Shows Queue + Now Serving Only
+    pipBtn.addEventListener("click", async () => {
+      try {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+          return;
+        }
+
+        // Share screen focused on this tab
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: "always" },
+          audio: false
+        });
+
+        pipVideo.srcObject = stream;
+        await pipVideo.play();
+        await pipVideo.requestPictureInPicture();
+
+        // Stop stream when PiP closed
+        pipVideo.addEventListener("leavepictureinpicture", () => {
+          stream.getTracks().forEach(t => t.stop());
+          pipVideo.srcObject = null;
+        });
+
+      } catch (err) {
+        alert("⚠️ PiP not available.\nUse Chrome or Edge.\nClick the button → select this tab → Share.\n\nThen you can see the queue while doing other work.");
+      }
+    });
+
     function formatEncodingToken(num) {
       return `E${String(num).padStart(3, '0')}`;
     }
@@ -301,7 +355,7 @@
       document.getElementById("waitingCount").textContent = q?.length || 0;
       document.getElementById("callNextBtn").disabled = !q?.length;
       
-      // Queue List — fully visible, no scroll
+      // Queue List
       const body = document.getElementById("queueBody");
       if (!q?.length) {
         body.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-400">No encoding customers waiting</td></tr>`;
