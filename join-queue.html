@@ -12,22 +12,33 @@
         extend: {
           colors: {
             primary: '#0b3d91',
-            magcoop: { blue: '#0b3d91', yellow: '#f5ce00', green: '#22c55e' }
+            magcoop: { 
+              blue: '#0b3d91', 
+              yellow: '#f5ce00', 
+              green: '#22c55e',
+              loan: '#8b5cf6',
+              loandark: '#7c3aed'
+            }
           }
         }
       }
     }
   </script>
   <style>
-    body { background: linear-gradient(135deg, #0b3d91 0%, #1e50b8 100%); min-height: 100vh; font-family: sans-serif; }
-    .pulse-btn { animation: pulse 2s infinite; }
+    /* ✅ Matches Loan Counter background exactly */
+    body { 
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); 
+      min-height: 100vh; 
+      font-family: sans-serif; 
+    }
+    .pulse-btn { animation: pulse 1.5s infinite; }
     @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.03); }
-      100% { transform: scale(1); }
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+      50% { transform: scale(1.03); box-shadow: 0 0 20px 10px rgba(139, 92, 246, 0.2); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
     }
     .option-card { transition: all 0.2s ease; cursor: pointer; }
-    .option-card.selected { border-color: #22c55e; background: #f0fdf4; }
+    .option-card.selected { border-color: #8b5cf6; background: #f5f3ff; }
     .option-card:hover { transform: translateY(-2px); }
     .input-error { border-color: #ef4444 !important; background: #fef2f2; }
   </style>
@@ -35,7 +46,7 @@
 <body class="flex items-center justify-center p-4">
   <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 text-center">
     <h1 class="text-3xl font-bold mb-6">
-      <span class="text-magcoop-blue">MAG</span><span class="text-magcoop-yellow">COOP</span>
+      <span class="text-magcoop-loan">💰 MAGCOOP</span>
     </h1>
     <h2 class="text-xl font-semibold text-gray-700 mb-6">Join the Queue</h2>
     
@@ -49,7 +60,7 @@
         type="text" 
         id="nicknameInput" 
         placeholder="e.g. Roland, not Roland Pogi" 
-        class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-lg focus:border-magcoop-blue focus:outline-none"
+        class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-lg focus:border-magcoop-loan focus:outline-none"
         autocomplete="nickname"
       />
       
@@ -64,7 +75,7 @@
               <p class="font-semibold text-gray-800">Encoding</p>
               <p class="text-xs text-gray-500">Visa, Forms, Printing, Uniform</p>
             </div>
-            <span class="ml-auto text-magcoop-green font-bold" id="checkGeneral">✓</span>
+            <span class="ml-auto text-magcoop-loan font-bold" id="checkGeneral">✓</span>
           </div>
         </div>
         
@@ -75,14 +86,14 @@
               <p class="font-semibold text-gray-800">MAGCOOP Loan</p>
               <p class="text-xs text-gray-500">Loan application & processing</p>
             </div>
-            <span class="ml-auto text-magcoop-green font-bold hidden" id="checkLoan">✓</span>
+            <span class="ml-auto text-magcoop-loan font-bold hidden" id="checkLoan">✓</span>
           </div>
         </div>
       </div>
       
       <button 
         id="submitBtn" 
-        class="w-full bg-magcoop-green hover:bg-green-600 text-white text-lg font-bold py-3 rounded-xl transition pulse-btn"
+        class="w-full bg-magcoop-loan hover:bg-magcoop-loandark text-white text-lg font-bold py-3 rounded-xl transition pulse-btn"
       >
         ✅ Submit to Queue
       </button>
@@ -93,14 +104,14 @@
     <!-- Success Section -->
     <div id="successSection" class="hidden">
       <div class="text-6xl mb-4">✅</div>
-      <h3 class="text-2xl font-bold text-green-600 mb-2">YOU'RE IN THE QUEUE!</h3>
-      <p class="text-lg text-gray-700 mb-1">Token: <span id="showToken" class="font-bold text-magcoop-blue"></span></p>
+      <h3 class="text-2xl font-bold text-magcoop-loan mb-2">YOU'RE IN THE QUEUE!</h3>
+      <p class="text-lg text-gray-700 mb-1">Token: <span id="showToken" class="font-bold text-magcoop-loan"></span></p>
       <p class="text-lg text-gray-700 mb-1">Name: <span id="showName" class="font-bold uppercase"></span></p>
       <p class="text-md text-gray-600 mb-4">Service: <span id="showService" class="font-semibold"></span></p>
       <p class="text-sm text-gray-500 mb-3">
         Auto-closing in <span id="countdown">5</span> seconds...
       </p>
-      <a href="public-display.html" class="inline-block mt-2 text-magcoop-blue hover:underline font-medium">
+      <a href="public-display.html" class="inline-block mt-2 text-magcoop-loan hover:underline font-medium">
         📋 View Queue List Now →
       </a>
     </div>
@@ -156,7 +167,6 @@
     // === Block spaces as user types ===
     nicknameInput.addEventListener('input', () => {
       const val = nicknameInput.value;
-      // Remove spaces immediately as they type
       if (/\s/.test(val)) {
         nicknameInput.value = val.replace(/\s+/g, '');
         statusText.textContent = '⚠️ Spaces not allowed — use one nickname only';
@@ -178,7 +188,6 @@
       const serviceFromLink = params.get('service');
       
       if (nameFromLink) {
-        // Auto-clean spaces from link too
         const cleaned = decodeURIComponent(nameFromLink).replace(/\s+/g, '');
         nicknameInput.value = cleaned;
         statusText.textContent = 'Name loaded & cleaned ✅';
@@ -212,7 +221,6 @@
         if (!isNaN(num) && num > maxNum) maxNum = num;
       });
       
-      // Generate correct format based on service
       if (selectedService === 'MAGCOOP Loan') {
         return `L${String(maxNum + 1).padStart(3, '0')}`;
       } else {
@@ -224,7 +232,6 @@
     async function submitToQueue() {
       let nickname = nicknameInput.value.trim();
       
-      // Final check — no spaces
       if (/\s/.test(nickname)) {
         statusText.textContent = '❌ Spaces not allowed! Enter one nickname only';
         statusText.style.color = '#ef4444';
@@ -233,7 +240,6 @@
         return;
       }
       
-      // Not empty
       if (!nickname) {
         statusText.textContent = '⚠️ Enter your nickname first!';
         statusText.style.color = '#ea580c';
@@ -241,7 +247,6 @@
         return;
       }
       
-      // Too long
       if (nickname.length > 20) {
         statusText.textContent = '❌ Nickname too long — keep it short';
         statusText.style.color = '#ef4444';
@@ -267,14 +272,12 @@
         
         if (error) throw error;
         
-        // Show success screen
         showToken.textContent = token;
         showName.textContent = nickname.toUpperCase();
         showService.textContent = selectedService;
         formSection.classList.add('hidden');
         successSection.classList.remove('hidden');
         
-        // Countdown then close or redirect
         let seconds = 5;
         const timer = setInterval(() => {
           seconds--;
