@@ -53,7 +53,7 @@
       <p class="text-slate-400 mb-2">NOW SERVING — ENCODING</p>
       <p class="name-big text-accent" id="bigName">—</p>
       <p class="text-slate-300 mt-2 text-center" id="proceedText">Waiting for next...</p>
-      <p class="mt-1 text-slate-400" id="tokenDisplay"></p>
+      <p class="mt-1 text-slate-400 text-2xl font-mono" id="tokenDisplay"></p>
       <p class="mt-2"><span class="counter-badge" id="whichCounter">Counter 1</span></p>
     </section>
 
@@ -70,7 +70,7 @@
       <p class="text-purple-400 mb-2 text-lg font-semibold">NOW SERVING — LOAN</p>
       <p class="name-big text-loan" id="loanBigName">—</p>
       <p class="text-slate-300 mt-2 text-center" id="loanProceedText">Waiting for next loan...</p>
-      <p class="mt-1 text-slate-400" id="loanTokenDisplay"></p>
+      <p class="mt-1 text-slate-400 text-2xl font-mono" id="loanTokenDisplay"></p>
       <p class="mt-2"><span class="loan-badge">Loan Counter</span></p>
     </section>
 
@@ -85,6 +85,7 @@
   </main>
 
   <audio id="audioPlayer" preload="auto">
+
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
@@ -128,14 +129,35 @@
     clickHint.addEventListener("touchstart", enableAudio);
     clickHint.addEventListener("mousedown", enableAudio);
 
-    // 🔊 SPEAK
+    // 🔊 FORMAT TOKEN FOR VOICE — E001 → "E zero zero one" | L001 → "L zero zero one"
+    function formatTokenForSpeech(token) {
+      const letter = token.charAt(0);
+      const numbers = token.slice(1);
+      const spokenNumbers = numbers.split('').map(d => d === '0' ? 'zero' : d).join(' ');
+      return `${letter} ${spokenNumbers}`;
+    }
+
+    // Convert stored token (MAG-1) → Display format (E001 / L001)
+    function formatDisplayToken(token, type) {
+      // Extract number from "MAG-123"
+      const numStr = token.replace(/^.*-/, '');
+      const num = parseInt(numStr, 10);
+      if (type === 'encoding') {
+        return `E${String(num).padStart(3, '0')}`; // E001, E002...
+      } else {
+        return `L${String(num).padStart(3, '0')}`; // L001, L002...
+      }
+    }
+
     function speak(text) {
       if (!audioUnlocked) return;
       if (useSpeech && window.speechSynthesis) {
         try {
           window.speechSynthesis.cancel();
           const utt = new SpeechSynthesisUtterance(text);
-          utt.lang = "en-PH"; utt.rate = 0.85; utt.volume = 1;
+          utt.lang = "en-PH"; 
+          utt.rate = 0.85; 
+          utt.volume = 1;
           window.speechSynthesis.speak(utt);
           return;
         } catch { useSpeech = false; }
@@ -157,18 +179,22 @@
       const encodingCall = allCalls?.filter(c => c.service !== "MAGCOOP Loan")[0] || null;
       const loanCall = allCalls?.filter(c => c.service === "MAGCOOP Loan")[0] || null;
       
-      // ENCODING
+      // ENCODING — Display E001, E002... Speak "E zero zero one"
       if (encodingCall) {
         const name = (encodingCall.name || "Customer").toUpperCase();
         const counter = encodingCall.counter || 1;
+        const rawToken = encodingCall.token;
+        const displayToken = formatDisplayToken(rawToken, 'encoding');
+        
         document.getElementById("bigName").textContent = name;
         document.getElementById("proceedText").textContent = `Proceed to Counter ${counter}`;
-        document.getElementById("tokenDisplay").textContent = encodingCall.token;
+        document.getElementById("tokenDisplay").textContent = displayToken;
         document.getElementById("whichCounter").textContent = `Counter ${counter}`;
         
-        if (lastEncodingToken !== encodingCall.token) {
-          lastEncodingToken = encodingCall.token;
-          speak(`${name}. Please proceed to Counter ${counter}. Thank you.`);
+        if (lastEncodingToken !== rawToken) {
+          lastEncodingToken = rawToken;
+          const spokenToken = formatTokenForSpeech(displayToken);
+          speak(`${spokenToken}. Please proceed to Counter ${counter}. Thank you.`);
         }
       } else {
         document.getElementById("bigName").textContent = "—";
@@ -177,34 +203,42 @@
         lastEncodingToken = null;
       }
       
-      // ✅ LOAN — ANNOUNCES WHEN TOKEN CHANGES
+      // ✅ LOAN — Display L001, L002... Speak "L zero zero one"
       if (loanCall) {
         const name = (loanCall.name || "Customer").toUpperCase();
+        const rawToken = loanCall.token;
+        const displayToken = formatDisplayToken(rawToken, 'loan');
+        
         document.getElementById("loanBigName").textContent = name;
         document.getElementById("loanProceedText").textContent = "Please proceed to Loan Counter";
-        document.getElementById("loanTokenDisplay").textContent = loanCall.token;
+        document.getElementById("loanTokenDisplay").textContent = displayToken;
         
-        if (lastLoanToken !== loanCall.token) {
-          lastLoanToken = loanCall.token;
-          speak(`${name}. Please proceed to the Loan Counter. Thank you.`);
+        if (lastLoanToken !== rawToken) {
+          lastLoanToken = rawToken;
+          const spokenToken = formatTokenForSpeech(displayToken);
+          speak(`${spokenToken}. Please proceed to the Loan Counter. Thank you.`);
         }
       } else {
         document.getElementById("loanBigName").textContent = "—";
         document.getElementById("loanProceedText").textContent = "Waiting for next loan application...";
         document.getElementById("loanTokenDisplay").textContent = "";
-        lastLoanToken = null; // Reset so next call ALWAYS triggers
+        lastLoanToken = null;
       }
       
-      // NEXT IN QUEUE
+      // NEXT IN QUEUE — Also show E001 / L001 format
       const nextList = document.getElementById("nextList");
       if (q?.length) {
-        nextList.innerHTML = q.slice(0,5).map((c,i) => `
-          <div class="queue-item ${i===0?'border-2 border-amber-400/50':''}">
-            <span class="font-bold">${c.token}</span>
-            <span class="text-slate-300 ml-2">${(c.name||"").toUpperCase()}</span>
-            <span class="text-xs text-slate-500 ml-2">${c.service}</span>
-          </div>
-        `).join("");
+        nextList.innerHTML = q.slice(0,5).map((c,i) => {
+          const isLoan = c.service === "MAGCOOP Loan";
+          const displayTok = formatDisplayToken(c.token, isLoan ? 'loan' : 'encoding');
+          return `
+            <div class="queue-item ${i===0?'border-2 border-amber-400/50':''}">
+              <span class="font-bold">${displayTok}</span>
+              <span class="text-slate-300 ml-2">${(c.name||"").toUpperCase()}</span>
+              <span class="text-xs text-slate-500 ml-2">${c.service}</span>
+            </div>
+          `;
+        }).join("");
       } else {
         nextList.innerHTML = '<p class="text-slate-500 text-center py-3">No customers waiting</p>';
       }
