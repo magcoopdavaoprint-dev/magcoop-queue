@@ -25,7 +25,6 @@
     }
   </script>
   <style>
-    /* ✅ Matches Loan Counter background exactly */
     body { 
       background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); 
       min-height: 100vh; 
@@ -50,7 +49,6 @@
     </h1>
     <h2 class="text-xl font-semibold text-gray-700 mb-6">Join the Queue</h2>
     
-    <!-- Form Section -->
     <div id="formSection">
       <label class="block text-left text-gray-600 font-medium mb-2">
         Your Nickname Only
@@ -66,7 +64,6 @@
       
       <label class="block text-left text-gray-600 font-medium mt-5 mb-3">Select Service Type</label>
       
-      <!-- Service Options -->
       <div class="grid grid-cols-1 gap-3 mb-6">
         <div id="optGeneral" class="option-card border-2 border-gray-200 rounded-xl p-4 text-left selected">
           <div class="flex items-center gap-3">
@@ -101,7 +98,6 @@
       <p id="statusText" class="mt-3 text-xs text-gray-400">Enter nickname — no spaces please</p>
     </div>
     
-    <!-- Success Section -->
     <div id="successSection" class="hidden">
       <div class="text-6xl mb-4">✅</div>
       <h3 class="text-2xl font-bold text-magcoop-loan mb-2">YOU'RE IN THE QUEUE!</h3>
@@ -116,6 +112,7 @@
       </a>
     </div>
   </div>
+
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
@@ -141,7 +138,6 @@
     let selectedService = 'Encoding';
     let selectedDept = 'Customer Service';
     
-    // === Service Selection ===
     function selectService(type) {
       optGeneral.classList.remove('selected');
       optLoan.classList.remove('selected');
@@ -164,7 +160,6 @@
     optGeneral.addEventListener('click', () => selectService('general'));
     optLoan.addEventListener('click', () => selectService('loan'));
     
-    // === Block spaces as user types ===
     nicknameInput.addEventListener('input', () => {
       const val = nicknameInput.value;
       if (/\s/.test(val)) {
@@ -172,16 +167,13 @@
         statusText.textContent = '⚠️ Spaces not allowed — use one nickname only';
         statusText.style.color = '#ea580c';
         nicknameInput.classList.add('input-error');
-        setTimeout(() => {
-          nicknameInput.classList.remove('input-error');
-        }, 1500);
+        setTimeout(() => nicknameInput.classList.remove('input-error'), 1500);
       } else {
         statusText.textContent = 'Looks good ✅';
         statusText.style.color = '#22c55e';
       }
     });
     
-    // === Pre-fill from QR link ===
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       const nameFromLink = params.get('name');
@@ -194,41 +186,49 @@
         statusText.style.color = '#22c55e';
       }
       
-      if (serviceFromLink === 'loan') {
-        selectService('loan');
-      } else {
-        selectService('general');
-      }
+      if (serviceFromLink === 'loan') selectService('loan');
+      else selectService('general');
       
       nicknameInput.focus();
     });
     
-    // === Get Next Token ===
+    // ✅ FULLY SEPARATE COUNTERS: Loan = L001+, Encoding = E001+
     async function getNextToken() {
-      const [{ data: q }, { data: c }] = await Promise.all([
-        sb.from('queue').select('token'),
-        sb.from('calls').select('token')
+      const [{ data: queueData }, { data: callsData }] = await Promise.all([
+        sb.from('queue').select('token, service'),
+        sb.from('calls').select('token, service')
       ]);
       
-      let maxNum = 0;
-      [...(q||[]), ...(c||[])].forEach(row => {
+      const allRecords = [...(queueData || []), ...(callsData || [])];
+      
+      // Separate counters
+      let maxLoan = 0;
+      let maxEncoding = 0;
+      
+      allRecords.forEach(row => {
         let num;
         if (row.token?.startsWith('E') || row.token?.startsWith('L')) {
           num = parseInt(row.token.slice(1), 10);
         } else {
           num = parseInt(row.token?.replace(/^.*-/, ''), 10);
         }
-        if (!isNaN(num) && num > maxNum) maxNum = num;
+        if (isNaN(num) || num <= 0) return;
+        
+        if (row.service === 'MAGCOOP Loan') {
+          if (num > maxLoan) maxLoan = num;
+        } else {
+          if (num > maxEncoding) maxEncoding = num;
+        }
       });
       
+      // Completely independent
       if (selectedService === 'MAGCOOP Loan') {
-        return `L${String(maxNum + 1).padStart(3, '0')}`;
+        return `L${String(maxLoan + 1).padStart(3, '0')}`;
       } else {
-        return `E${String(maxNum + 1).padStart(3, '0')}`;
+        return `E${String(maxEncoding + 1).padStart(3, '0')}`;
       }
     }
     
-    // === Submit Validation ===
     async function submitToQueue() {
       let nickname = nicknameInput.value.trim();
       
@@ -282,13 +282,10 @@
         const timer = setInterval(() => {
           seconds--;
           countdownEl.textContent = seconds;
-          
           if (seconds <= 0) {
             clearInterval(timer);
             window.close();
-            if (!window.closed) {
-              window.location.replace('public-display.html');
-            }
+            if (!window.closed) window.location.replace('public-display.html');
           }
         }, 1000);
         
