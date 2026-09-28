@@ -64,18 +64,29 @@
         autocomplete="nickname"
       />
       
-      <!-- Service Section — Only Encoding -->
-      <label class="block text-left text-gray-600 font-medium mt-5 mb-3">Service Type</label>
+      <label class="block text-left text-gray-600 font-medium mt-5 mb-3">Select Service Type</label>
       
+      <!-- Service Options -->
       <div class="grid grid-cols-1 gap-3 mb-6">
-        <div class="option-card border-2 border-gray-200 rounded-xl p-4 text-left selected">
+        <div id="optGeneral" class="option-card border-2 border-gray-200 rounded-xl p-4 text-left selected">
           <div class="flex items-center gap-3">
             <span class="text-xl">📋</span>
             <div>
               <p class="font-semibold text-gray-800">Encoding</p>
               <p class="text-xs text-gray-500">Visa, Forms, Printing, Uniform</p>
             </div>
-            <span class="ml-auto text-magcoop-loan font-bold">✓</span>
+            <span class="ml-auto text-magcoop-loan font-bold" id="checkGeneral">✓</span>
+          </div>
+        </div>
+        
+        <div id="optLoan" class="option-card border-2 border-gray-200 rounded-xl p-4 text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-xl">💰</span>
+            <div>
+              <p class="font-semibold text-gray-800">MAGCOOP Loan</p>
+              <p class="text-xs text-gray-500">Loan application & processing</p>
+            </div>
+            <span class="ml-auto text-magcoop-loan font-bold hidden" id="checkLoan">✓</span>
           </div>
         </div>
       </div>
@@ -122,9 +133,36 @@
     const countdownEl = document.getElementById('countdown');
     const statusText = document.getElementById('statusText');
     
-    // Fixed service — Encoding only
-    const selectedService = 'Encoding';
-    const selectedDept = 'Customer Service';
+    const optGeneral = document.getElementById('optGeneral');
+    const optLoan = document.getElementById('optLoan');
+    const checkGeneral = document.getElementById('checkGeneral');
+    const checkLoan = document.getElementById('checkLoan');
+    
+    let selectedService = 'Encoding';
+    let selectedDept = 'Customer Service';
+    
+    // === Service Selection ===
+    function selectService(type) {
+      optGeneral.classList.remove('selected');
+      optLoan.classList.remove('selected');
+      checkGeneral.classList.add('hidden');
+      checkLoan.classList.add('hidden');
+      
+      if (type === 'general') {
+        optGeneral.classList.add('selected');
+        checkGeneral.classList.remove('hidden');
+        selectedService = 'Encoding';
+        selectedDept = 'Customer Service';
+      } else {
+        optLoan.classList.add('selected');
+        checkLoan.classList.remove('hidden');
+        selectedService = 'MAGCOOP Loan';
+        selectedDept = 'Loans';
+      }
+    }
+    
+    optGeneral.addEventListener('click', () => selectService('general'));
+    optLoan.addEventListener('click', () => selectService('loan'));
     
     // === Block spaces as user types ===
     nicknameInput.addEventListener('input', () => {
@@ -147,6 +185,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       const nameFromLink = params.get('name');
+      const serviceFromLink = params.get('service');
       
       if (nameFromLink) {
         const cleaned = decodeURIComponent(nameFromLink).replace(/\s+/g, '');
@@ -155,10 +194,16 @@
         statusText.style.color = '#22c55e';
       }
       
+      if (serviceFromLink === 'loan') {
+        selectService('loan');
+      } else {
+        selectService('general');
+      }
+      
       nicknameInput.focus();
     });
     
-    // === Get Next Token — E-prefix only ===
+    // === Get Next Token ===
     async function getNextToken() {
       const [{ data: q }, { data: c }] = await Promise.all([
         sb.from('queue').select('token'),
@@ -168,7 +213,7 @@
       let maxNum = 0;
       [...(q||[]), ...(c||[])].forEach(row => {
         let num;
-        if (row.token?.startsWith('E')) {
+        if (row.token?.startsWith('E') || row.token?.startsWith('L')) {
           num = parseInt(row.token.slice(1), 10);
         } else {
           num = parseInt(row.token?.replace(/^.*-/, ''), 10);
@@ -176,7 +221,11 @@
         if (!isNaN(num) && num > maxNum) maxNum = num;
       });
       
-      return `E${String(maxNum + 1).padStart(3, '0')}`;
+      if (selectedService === 'MAGCOOP Loan') {
+        return `L${String(maxNum + 1).padStart(3, '0')}`;
+      } else {
+        return `E${String(maxNum + 1).padStart(3, '0')}`;
+      }
     }
     
     // === Submit Validation ===
