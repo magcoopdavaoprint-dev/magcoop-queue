@@ -74,6 +74,9 @@
     .call-again-btn:hover {
       background: #d97706;
     }
+    .call-again-btn:active {
+      transform: scale(0.98);
+    }
   </style>
 </head>
 <body class="text-slate-800 min-h-screen p-4 md:p-6">
@@ -202,7 +205,7 @@
     
     let selectedCounter = 1;
     let tokenOffset = 0;
-    let currentServingData = null; // Store current serving for Call Again
+    let currentServingData = null;
     const modal = document.getElementById("addModal");
     const pipBtn = document.getElementById("pipBtn");
     const pipVideo = document.getElementById("pipVideo");
@@ -314,14 +317,11 @@
       }
     }
     
-    // ✅ CALL AGAIN — Re-announce the same person
+    // ✅ CALL AGAIN — One click, no popup
     callAgainBtn.addEventListener("click", async () => {
-      if (!currentServingData) {
-        alert("⚠️ No one is being served right now!");
-        return;
-      }
+      if (!currentServingData) return;
       
-      // Re-insert/update to trigger voice announcement on display
+      // Re-insert to trigger voice on display — NO alert
       await sb.from("calls").delete().eq("id", currentServingData.id);
       
       setTimeout(async () => {
@@ -334,7 +334,13 @@
         });
       }, 100);
       
-      alert(`📢 Calling again: ${currentServingData.token} — ${currentServingData.name}`);
+      // Visual feedback only — no OK button
+      callAgainBtn.textContent = "✅ CALLED AGAIN";
+      callAgainBtn.style.background = "#22c55e";
+      setTimeout(() => {
+        callAgainBtn.innerHTML = '<i class="fa-solid fa-bullhorn"></i> 🔁 CALL AGAIN';
+        callAgainBtn.style.background = "";
+      }, 2000);
     });
     
     document.getElementById("callNextBtn").addEventListener("click", async () => {
@@ -355,7 +361,6 @@
           status: "serving"
         }).select();
         
-        // Save current serving for Call Again
         if (newCall?.length) {
           currentServingData = newCall[0];
           callAgainBtn.disabled = false;
@@ -384,7 +389,6 @@
       document.getElementById("waitingCount").textContent = q?.length || 0;
       document.getElementById("callNextBtn").disabled = !q?.length;
       
-      // Update Call Again button state
       if (serving?.length) {
         currentServingData = serving[0];
         callAgainBtn.disabled = false;
@@ -393,7 +397,6 @@
         callAgainBtn.disabled = true;
       }
       
-      // Queue List
       const body = document.getElementById("queueBody");
       if (!q?.length) {
         body.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-400">No encoding customers waiting</td></tr>`;
@@ -412,7 +415,6 @@
         });
       }
       
-      // Now Serving
       if (serving?.length) {
         document.getElementById("nowServing").textContent = `${serving[0].token} — ${serving[0].name}`;
         document.getElementById("currentServiceLine").textContent = `Counter ${serving[0].counter}`;
@@ -421,7 +423,6 @@
         document.getElementById("currentServiceLine").textContent = "";
       }
       
-      // Recently Served
       const list = document.getElementById("recentlyServedList");
       if (!done?.length) {
         list.innerHTML = `<p class="text-slate-400 text-sm">No one served yet</p>`;
