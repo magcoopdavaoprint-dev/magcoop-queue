@@ -135,7 +135,6 @@
       addLoanModal.classList.remove('flex');
     });
     
-    // ✅ SEPARATE LOAN TOKEN — NEVER CONFLICTS WITH ENCODING
     async function getNextLoanToken() {
       const [{ data: queueData }, { data: callsData }] = await Promise.all([
         sb.from("queue").select("token").eq("service", "MAGCOOP Loan"),
@@ -155,7 +154,6 @@
         if (!isNaN(num) && num > maxLoanNum) maxLoanNum = num;
       });
       
-      // If reset or no records → start fresh at L001
       const nextNum = forceStartFromOne ? 1 : (maxLoanNum + 1);
       forceStartFromOne = false;
       
@@ -185,7 +183,11 @@
     window.addEventListener('DOMContentLoaded', loadLoanQueue);
     
     async function loadLoanQueue() {
-      const { data } = await sb.from('queue').select('*').eq('service', 'MAGCOOP Loan').order('position', { ascending: true });
+      const { data } = await sb.from('queue')
+        .select('*')
+        .eq('service', 'MAGCOOP Loan')
+        .order('position', { ascending: true });
+      
       loanQueue = data || [];
       waitingCountEl.textContent = loanQueue.length;
       
@@ -267,15 +269,27 @@
     
     resetLoanBtn.addEventListener('click', async () => {
       if (!confirm('⚠️ RESET ALL LOAN DATA?\n\nClear queue + clear display\nNext = L001')) return;
-      await sb.from('queue').delete().eq('service', 'MAGCOOP Loan');
-      await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
+      
+      await Promise.all([
+        sb.from('queue').delete().eq('service', 'MAGCOOP Loan'),
+        sb.from('calls').delete().eq('service', 'MAGCOOP Loan')
+      ]);
+      
+      // ✅ INSTANT LOCAL UPDATE — no refresh needed
+      loanQueue = [];
+      waitingCountEl.textContent = '0';
+      renderLoanQueue();
+      callNextBtn.disabled = true;
+      
       currentServing = null;
       currentTokenEl.textContent = '—';
       currentNameEl.textContent = 'Waiting for next loan...';
+      
       forceStartFromOne = true;
       alert('✅ Reset Complete — Next will be L001');
     });
     
+    // ✅ LIVE REAL-TIME — catches ALL changes including reset/clear
     sb.channel('loan-queue-live')
       .on('postgres_changes', { 
         event: '*', 
@@ -284,6 +298,18 @@
         filter: 'service=eq.MAGCOOP Loan' 
       }, () => {
         loadLoanQueue();
+      })
+      .subscribe();
+      
+    // ✅ Also listen to calls table changes for full sync
+    sb.channel('loan-calls-live')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'calls',
+        filter: 'service=eq.MAGCOOP Loan'
+      }, () => {
+        // Optional: sync serving display if needed
       })
       .subscribe();
   </script>
