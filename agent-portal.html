@@ -52,7 +52,6 @@
     .counter-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
     .served-item { border-bottom: 1px solid #f1f5f9; padding: 6px 0; }
     .served-item:last-child { border-bottom: none; }
-    /* === PiP Button === */
     .pip-btn {
       position: fixed;
       top: 16px;
@@ -69,15 +68,19 @@
       transition: all 0.2s;
     }
     .pip-btn:hover { background: rgba(255,255,255,0.3); }
+    .call-again-btn {
+      background: #f59e0b;
+    }
+    .call-again-btn:hover {
+      background: #d97706;
+    }
   </style>
 </head>
 <body class="text-slate-800 min-h-screen p-4 md:p-6">
   <!-- 🎬 PICTURE-IN-PICTURE BUTTON -->
   <button id="pipBtn" class="pip-btn">🎬 PiP Queue</button>
-
   <!-- Hidden video for PiP -->
   <video id="pipVideo" style="display:none;" muted playsinline></video>
-
   <div class="max-w-7xl mx-auto">
     <!-- Header -->
     <div class="mb-6">
@@ -86,7 +89,6 @@
       </h1>
       <p class="text-sm mt-1 text-white/70" id="connStatus">Checking connection...</p>
     </div>
-
     <!-- Top Row: Stats & Quick Actions -->
     <div class="grid grid-cols-1 md:grid-cols-8 gap-4 mb-4">
       <div class="md:col-span-3 bg-white rounded-xl p-4 shadow-sm">
@@ -115,7 +117,6 @@
         </div>
       </div>
     </div>
-
     <!-- Main: Counter Controls + Queue List -->
     <div class="bg-white rounded-xl shadow-sm p-5">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -139,6 +140,10 @@
             <p class="text-sm text-slate-500 mt-1" id="currentServiceLine"></p>
           </div>
           
+          <button id="callAgainBtn" class="btn call-again-btn w-full text-white py-2 rounded-lg font-semibold mb-2" disabled>
+            <i class="fa-solid fa-bullhorn"></i> 🔁 CALL AGAIN
+          </button>
+          
           <button id="callNextBtn" class="btn w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold mb-2" disabled>
             <i class="fa-solid fa-arrow-right"></i> CALL NEXT ENCODING
           </button>
@@ -147,7 +152,6 @@
             <i class="fa-solid fa-rotate-left"></i> RESET ENCODING QUEUE
           </button>
         </div>
-
         <!-- RIGHT: Queue List -->
         <div class="md:col-span-2" id="pipQueueSection">
           <div class="flex justify-between items-center mb-3">
@@ -173,7 +177,6 @@
       </div>
     </div>
   </div>
-
   <!-- Add Customer Modal -->
   <div id="addModal" class="modal-overlay">
     <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
@@ -191,7 +194,6 @@
       <p id="modalNote" class="mt-3 text-sm"></p>
     </div>
   </div>
-
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
@@ -200,39 +202,35 @@
     
     let selectedCounter = 1;
     let tokenOffset = 0;
+    let currentServingData = null; // Store current serving for Call Again
     const modal = document.getElementById("addModal");
     const pipBtn = document.getElementById("pipBtn");
     const pipVideo = document.getElementById("pipVideo");
-
-    // 🎬 PICTURE-IN-PICTURE — Shows Queue + Now Serving Only
+    const callAgainBtn = document.getElementById("callAgainBtn");
+    
+    // 🎬 PICTURE-IN-PICTURE
     pipBtn.addEventListener("click", async () => {
       try {
         if (document.pictureInPictureElement) {
           await document.exitPictureInPicture();
           return;
         }
-
-        // Share screen focused on this tab
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: { cursor: "always" },
           audio: false
         });
-
         pipVideo.srcObject = stream;
         await pipVideo.play();
         await pipVideo.requestPictureInPicture();
-
-        // Stop stream when PiP closed
         pipVideo.addEventListener("leavepictureinpicture", () => {
           stream.getTracks().forEach(t => t.stop());
           pipVideo.srcObject = null;
         });
-
       } catch (err) {
-        alert("⚠️ PiP not available.\nUse Chrome or Edge.\nClick the button → select this tab → Share.\n\nThen you can see the queue while doing other work.");
+        alert("⚠️ PiP not available.\nUse Chrome or Edge.\nClick the button → select this tab → Share.");
       }
     });
-
+    
     function formatEncodingToken(num) {
       return `E${String(num).padStart(3, '0')}`;
     }
@@ -316,6 +314,29 @@
       }
     }
     
+    // ✅ CALL AGAIN — Re-announce the same person
+    callAgainBtn.addEventListener("click", async () => {
+      if (!currentServingData) {
+        alert("⚠️ No one is being served right now!");
+        return;
+      }
+      
+      // Re-insert/update to trigger voice announcement on display
+      await sb.from("calls").delete().eq("id", currentServingData.id);
+      
+      setTimeout(async () => {
+        await sb.from("calls").insert({
+          token: currentServingData.token,
+          name: currentServingData.name,
+          service: "Encoding",
+          counter: currentServingData.counter,
+          status: "serving"
+        });
+      }, 100);
+      
+      alert(`📢 Calling again: ${currentServingData.token} — ${currentServingData.name}`);
+    });
+    
     document.getElementById("callNextBtn").addEventListener("click", async () => {
       try {
         const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
@@ -326,13 +347,19 @@
         
         const person = next[0];
         await sb.from("queue").delete().eq("id", person.id);
-        await sb.from("calls").insert({
+        const { data: newCall } = await sb.from("calls").insert({
           token: person.token,
           name: person.name,
           service: "Encoding",
           counter: selectedCounter,
           status: "serving"
-        });
+        }).select();
+        
+        // Save current serving for Call Again
+        if (newCall?.length) {
+          currentServingData = newCall[0];
+          callAgainBtn.disabled = false;
+        }
       } catch (err) { alert("Error: " + err.message); }
     });
     
@@ -341,6 +368,8 @@
       await sb.from("queue").delete().eq("service", "Encoding");
       await sb.from("calls").delete().eq("service", "Encoding");
       tokenOffset = 1;
+      currentServingData = null;
+      callAgainBtn.disabled = true;
       alert("✅ Encoding Reset — Next = E001");
       load();
     }
@@ -354,6 +383,15 @@
       
       document.getElementById("waitingCount").textContent = q?.length || 0;
       document.getElementById("callNextBtn").disabled = !q?.length;
+      
+      // Update Call Again button state
+      if (serving?.length) {
+        currentServingData = serving[0];
+        callAgainBtn.disabled = false;
+      } else {
+        currentServingData = null;
+        callAgainBtn.disabled = true;
+      }
       
       // Queue List
       const body = document.getElementById("queueBody");
