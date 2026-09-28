@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Public Display — MAGCOOP DAVAO</title>
+  <title>MAGCOOP DAVAO — QUEUE DISPLAY</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
@@ -18,64 +18,82 @@
   <style>
     html, body { height: 100%; margin: 0; overflow: hidden; }
     body { background: #0f172a; color: white; font-family: 'Inter', sans-serif; }
-    .name-big { font-size: clamp(2.5rem, 9vw, 5rem); font-weight: 800; line-height: 1; text-transform: uppercase; letter-spacing: 0.05em; }
-    .counter-badge { background: #2563eb; padding: 0.4rem 1.2rem; border-radius: 9999px; font-weight: 700; display: inline-block; font-size: 1.1rem; }
-    .loan-badge { background: #8b5cf6; padding: 0.4rem 1.2rem; border-radius: 9999px; font-weight: 700; display: inline-block; font-size: 1.1rem; }
-    .pulse { animation: pulse 2s infinite; }
-    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    .token-encoding { font-size: clamp(3rem, 10vw, 4.5rem); font-weight: 900; color: #f59e0b; line-height: 1; }
+    .token-loan { font-size: clamp(3rem, 10vw, 4.5rem); font-weight: 900; color: #8b5cf6; line-height: 1; }
+    .name-big { font-size: clamp(2rem, 7vw, 3.5rem); font-weight: 800; text-transform: uppercase; line-height: 1; }
+    .counter-badge { background: #2563eb; padding: 0.5rem 2rem; border-radius: 9999px; font-weight: 700; display: inline-block; }
+    .loan-badge { background: #8b5cf6; padding: 0.5rem 2rem; border-radius: 9999px; font-weight: 700; display: inline-block; }
+    .divider-v { border-right: 1px solid rgba(71, 85, 105, 0.4); }
+    .divider-h { border-bottom: 1px solid rgba(71, 85, 105, 0.4); }
     .qr-box { background: white; border-radius: 12px; padding: 0.8rem; display: flex; align-items: center; justify-content: center; }
     .click-hint { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,0.95); cursor: pointer; }
     .click-hint.hidden { display: none; }
-    .queue-item { padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: rgba(51,65,85,0.4); }
-    .bottom-section { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; height: 100%; }
+    .next-item { padding: 0.3rem 0; border-bottom: 1px solid rgba(71, 85, 105, 0.2); }
+    .next-item:last-child { border-bottom: none; }
   </style>
 </head>
 <body class="h-screen flex flex-col">
-  <!-- 🔊 CLICK ONCE ON THIS SCREEN FIRST → ENABLES SOUND -->
+  <!-- 🔊 CLICK ONCE — ENABLE SOUND -->
   <div id="clickHint" class="click-hint">
     <div class="text-center p-6">
-      <div class="pulse mb-4 text-5xl">🔊</div>
+      <div class="text-5xl mb-4">🔊</div>
       <h2 class="text-xl font-bold mb-2">👆 CLICK HERE ONCE FIRST</h2>
       <p class="text-amber-400 font-semibold mb-1">Before Casting to TV</p>
       <p class="text-slate-400 text-sm">Sound plays from your device speakers</p>
     </div>
   </div>
 
-  <header class="py-3 px-4 text-center shrink-0">
-    <h1 class="text-2xl font-bold">MAGCOOP DAVAO — QUEUE DISPLAY</h1>
-    <p class="text-slate-400 text-sm mt-1" id="status">Connecting...</p>
-    <p class="text-xs mt-1" id="voiceStatus">Waiting for click...</p>
+  <!-- HEADER -->
+  <header class="py-3 px-6 flex justify-between items-center border-b border-slate-700/40 shrink-0">
+    <h1 class="text-xl font-bold">
+      <span class="text-blue-500">MAGCOOP</span> <span class="text-amber-400">DAVAO</span> — QUEUE DISPLAY
+    </h1>
+    <div class="text-right text-sm">
+      <p class="text-green-400" id="status">🟢 LIVE — Connected</p>
+      <p class="text-xs mt-1" id="voiceStatus">Waiting for click...</p>
+    </div>
   </header>
 
-  <main class="flex-1 grid grid-cols-1 lg:grid-cols-2 lg:grid-rows-2 gap-0 min-h-0">
+  <!-- MAIN 2×2 GRID -->
+  <main class="flex-1 grid grid-cols-2 grid-rows-2 min-h-0">
     <!-- TOP LEFT: ENCODING -->
-    <section class="bottom-section border-b lg:border-b-0 lg:border-r border-slate-700/50">
-      <p class="text-slate-400 mb-2">NOW SERVING — ENCODING</p>
-      <p class="name-big text-accent" id="bigName">—</p>
-      <p class="text-slate-300 mt-2 text-center" id="proceedText">Waiting for next...</p>
-      <p class="mt-1 text-slate-400 text-2xl font-mono" id="tokenDisplay"></p>
-      <p class="mt-2"><span class="counter-badge" id="whichCounter">Counter 1</span></p>
+    <section class="flex flex-col items-center justify-center p-6 divider-h divider-v">
+      <p class="text-slate-400 mb-4">NOW SERVING — ENCODING</p>
+      <p class="token-encoding" id="encToken">—</p>
+      <p class="name-big mt-3" id="encName">—</p>
+      <p class="text-slate-300 mt-4" id="encProceed">Waiting for next...</p>
+      <p class="mt-5"><span class="counter-badge" id="encCounterBtn">Counter 1</span></p>
     </section>
 
-    <!-- TOP RIGHT: NEXT IN QUEUE -->
-    <section class="bottom-section border-b lg:border-b-0 border-slate-700/50 min-h-0">
-      <h3 class="text-lg font-semibold text-slate-300 mb-4">NEXT IN QUEUE</h3>
-      <div id="nextList" class="space-y-2 w-full">
-        <p class="text-slate-500 text-center py-3">No customers waiting</p>
+    <!-- TOP RIGHT: LOAN -->
+    <section class="flex flex-col items-center justify-center p-6 divider-h">
+      <p class="text-purple-400 mb-4">NOW SERVING — LOAN</p>
+      <p class="token-loan" id="loanToken">—</p>
+      <p class="name-big mt-3 text-purple-300" id="loanName">—</p>
+      <p class="text-slate-300 mt-4" id="loanProceed">Waiting for next loan application...</p>
+      <p class="mt-5"><span class="loan-badge">Loan Counter</span></p>
+    </section>
+
+    <!-- BOTTOM LEFT: NEXT IN QUEUE -->
+    <section class="flex items-start justify-between p-6 divider-v">
+      <div class="w-[48%]">
+        <p class="text-lg font-semibold text-slate-300">NEXT IN QUEUE</p>
+        <p class="text-sm text-slate-400 mt-1 mb-2">ENCODING</p>
+        <div id="encNextList" class="text-slate-200 text-sm">
+          <p>No customers waiting</p>
+        </div>
+      </div>
+      <div class="w-[48%] text-right">
+        <p class="text-lg font-semibold text-slate-300">NEXT IN QUEUE</p>
+        <p class="text-sm text-slate-400 mt-1 mb-2">LOAN</p>
+        <div id="loanNextList" class="text-slate-200 text-sm">
+          <p>No customers waiting</p>
+        </div>
       </div>
     </section>
 
-    <!-- BOTTOM LEFT: LOAN -->
-    <section class="bottom-section border-r border-slate-700/50">
-      <p class="text-purple-400 mb-2 text-lg font-semibold">NOW SERVING — LOAN</p>
-      <p class="name-big text-loan" id="loanBigName">—</p>
-      <p class="text-slate-300 mt-2 text-center" id="loanProceedText">Waiting for next loan...</p>
-      <p class="mt-1 text-slate-400 text-2xl font-mono" id="loanTokenDisplay"></p>
-      <p class="mt-2"><span class="loan-badge">Loan Counter</span></p>
-    </section>
-
-    <!-- BOTTOM RIGHT: QR -->
-    <section class="bottom-section">
+    <!-- BOTTOM RIGHT: QR CODE -->
+    <section class="flex flex-col items-center justify-center p-6">
       <h3 class="text-lg font-semibold text-slate-300 mb-4">📱 SCAN TO JOIN QUEUE</h3>
       <div class="qr-box mb-2">
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=https%3A%2F%2Fmagcoopdavaoprint-dev.github.io%2Fmagcoop-queue%2Fjoin-queue.html" alt="QR" class="w-52 h-52" />
@@ -85,7 +103,6 @@
   </main>
 
   <audio id="audioPlayer" preload="auto">
-
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
@@ -96,11 +113,9 @@
     let useSpeech = false;
     let lastLoanToken = null;
     let lastEncodingToken = null;
-
     const clickHint = document.getElementById("clickHint");
     const voiceStatus = document.getElementById("voiceStatus");
 
-    // 🔓 UNLOCK AUDIO — MUST CLICK ONCE
     function enableAudio() {
       if (audioUnlocked) return;
       audioUnlocked = true;
@@ -127,9 +142,7 @@
     }
     clickHint.addEventListener("click", enableAudio);
     clickHint.addEventListener("touchstart", enableAudio);
-    clickHint.addEventListener("mousedown", enableAudio);
 
-    // 🔊 FORMAT TOKEN FOR VOICE — E001 → "E zero zero one" | L001 → "L zero zero one"
     function formatTokenForSpeech(token) {
       const letter = token.charAt(0);
       const numbers = token.slice(1);
@@ -137,16 +150,11 @@
       return `${letter} ${spokenNumbers}`;
     }
 
-    // Convert stored token (MAG-1) → Display format (E001 / L001)
     function formatDisplayToken(token, type) {
-      // Extract number from "MAG-123"
-      const numStr = token.replace(/^.*-/, '');
-      const num = parseInt(numStr, 10);
-      if (type === 'encoding') {
-        return `E${String(num).padStart(3, '0')}`; // E001, E002...
-      } else {
-        return `L${String(num).padStart(3, '0')}`; // L001, L002...
-      }
+      const digits = String(token).replace(/[^0-9]/g, '');
+      let num = parseInt(digits, 10);
+      if (isNaN(num) || num <= 0) num = 1;
+      return type === 'encoding' ? `E${String(num).padStart(3, '0')}` : `L${String(num).padStart(3, '0')}`;
     }
 
     function speak(text) {
@@ -155,8 +163,8 @@
         try {
           window.speechSynthesis.cancel();
           const utt = new SpeechSynthesisUtterance(text);
-          utt.lang = "en-PH"; 
-          utt.rate = 0.85; 
+          utt.lang = "en-PH";
+          utt.rate = 0.85;
           utt.volume = 1;
           window.speechSynthesis.speak(utt);
           return;
@@ -171,93 +179,91 @@
       } catch (e) { console.log("Audio failed:", e); }
     }
 
-    // 📋 LOAD ALL
     async function loadData() {
       const { data: q } = await sb.from("queue").select("*").order("position", { ascending: true }).limit(10);
       const { data: allCalls } = await sb.from("calls").select("*").order("id", { ascending: false });
       
       const encodingCall = allCalls?.filter(c => c.service !== "MAGCOOP Loan")[0] || null;
       const loanCall = allCalls?.filter(c => c.service === "MAGCOOP Loan")[0] || null;
-      
-      // ENCODING — Display E001, E002... Speak "E zero zero one"
+
+      // ENCODING — NOW SERVING
       if (encodingCall) {
         const name = (encodingCall.name || "Customer").toUpperCase();
         const counter = encodingCall.counter || 1;
         const rawToken = encodingCall.token;
         const displayToken = formatDisplayToken(rawToken, 'encoding');
-        
-        document.getElementById("bigName").textContent = name;
-        document.getElementById("proceedText").textContent = `Proceed to Counter ${counter}`;
-        document.getElementById("tokenDisplay").textContent = displayToken;
-        document.getElementById("whichCounter").textContent = `Counter ${counter}`;
-        
+        document.getElementById("encToken").textContent = displayToken;
+        document.getElementById("encName").textContent = name;
+        document.getElementById("encProceed").textContent = `Proceed to Counter ${counter}`;
+        document.getElementById("encCounterBtn").textContent = `Counter ${counter}`;
         if (lastEncodingToken !== rawToken) {
           lastEncodingToken = rawToken;
           const spokenToken = formatTokenForSpeech(displayToken);
           speak(`${spokenToken}. Please proceed to Counter ${counter}. Thank you.`);
         }
       } else {
-        document.getElementById("bigName").textContent = "—";
-        document.getElementById("proceedText").textContent = "Waiting for next customer...";
-        document.getElementById("tokenDisplay").textContent = "";
+        document.getElementById("encToken").textContent = "—";
+        document.getElementById("encName").textContent = "—";
+        document.getElementById("encProceed").textContent = "Waiting for next customer...";
+        document.getElementById("encCounterBtn").textContent = "Counter 1";
         lastEncodingToken = null;
       }
-      
-      // ✅ LOAN — Display L001, L002... Speak "L zero zero one"
+
+      // LOAN — NOW SERVING
       if (loanCall) {
         const name = (loanCall.name || "Customer").toUpperCase();
         const rawToken = loanCall.token;
         const displayToken = formatDisplayToken(rawToken, 'loan');
-        
-        document.getElementById("loanBigName").textContent = name;
-        document.getElementById("loanProceedText").textContent = "Please proceed to Loan Counter";
-        document.getElementById("loanTokenDisplay").textContent = displayToken;
-        
+        document.getElementById("loanToken").textContent = displayToken;
+        document.getElementById("loanName").textContent = name;
+        document.getElementById("loanProceed").textContent = "Please proceed to the Loan Counter";
         if (lastLoanToken !== rawToken) {
           lastLoanToken = rawToken;
           const spokenToken = formatTokenForSpeech(displayToken);
           speak(`${spokenToken}. Please proceed to the Loan Counter. Thank you.`);
         }
       } else {
-        document.getElementById("loanBigName").textContent = "—";
-        document.getElementById("loanProceedText").textContent = "Waiting for next loan application...";
-        document.getElementById("loanTokenDisplay").textContent = "";
+        document.getElementById("loanToken").textContent = "—";
+        document.getElementById("loanName").textContent = "—";
+        document.getElementById("loanProceed").textContent = "Waiting for next loan application...";
         lastLoanToken = null;
       }
-      
-      // NEXT IN QUEUE — Also show E001 / L001 format
-      const nextList = document.getElementById("nextList");
-      if (q?.length) {
-        nextList.innerHTML = q.slice(0,5).map((c,i) => {
-          const isLoan = c.service === "MAGCOOP Loan";
-          const displayTok = formatDisplayToken(c.token, isLoan ? 'loan' : 'encoding');
-          return `
-            <div class="queue-item ${i===0?'border-2 border-amber-400/50':''}">
-              <span class="font-bold">${displayTok}</span>
-              <span class="text-slate-300 ml-2">${(c.name||"").toUpperCase()}</span>
-              <span class="text-xs text-slate-500 ml-2">${c.service}</span>
-            </div>
-          `;
+
+      // NEXT IN QUEUE — ENCODING: SHOW UP TO 5 NAMES
+      const encNextList = q?.filter(c => c.service !== "MAGCOOP Loan").slice(0, 5) || [];
+      const encListEl = document.getElementById("encNextList");
+      if (encNextList.length > 0) {
+        encListEl.innerHTML = encNextList.map(c => {
+          const tok = formatDisplayToken(c.token, 'encoding');
+          return `<div class="next-item"><span class="font-bold">${tok}</span> — ${(c.name || "").toUpperCase()}</div>`;
         }).join("");
       } else {
-        nextList.innerHTML = '<p class="text-slate-500 text-center py-3">No customers waiting</p>';
+        encListEl.innerHTML = `<p>No customers waiting</p>`;
+      }
+
+      // ✅ FIXED — LOAN NOW SHOWS UP TO 5 NAMES
+      const loanNextList = q?.filter(c => c.service === "MAGCOOP Loan").slice(0, 5) || [];
+      const loanListEl = document.getElementById("loanNextList");
+      if (loanNextList.length > 0) {
+        loanListEl.innerHTML = loanNextList.map(c => {
+          const tok = formatDisplayToken(c.token, 'loan');
+          return `<div class="next-item"><span class="font-bold">${tok}</span> — ${(c.name || "").toUpperCase()}</div>`;
+        }).join("");
+      } else {
+        loanListEl.innerHTML = `<p>No customers waiting</p>`;
       }
     }
 
-    // 🔄 REALTIME
     sb.channel("display")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "calls" }, loadData)
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "calls" }, loadData)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "calls" }, loadData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "calls" }, loadData)
       .on("postgres_changes", { event: "*", schema: "public", table: "queue" }, loadData)
       .subscribe();
-    
-    setInterval(loadData, 1000);
 
+    setInterval(loadData, 1000);
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
-        document.getElementById("status").textContent = "🟢 LIVE";
+        document.getElementById("status").textContent = "🟢 LIVE — Connected";
       } catch {
         document.getElementById("status").textContent = "🔴 Error";
       }
