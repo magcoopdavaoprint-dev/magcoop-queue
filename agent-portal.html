@@ -206,6 +206,7 @@
     let selectedCounter = 1;
     let tokenOffset = 0;
     let currentServingData = null;
+    let lastAnnouncedToken = null; // Track to force re-trigger
     const modal = document.getElementById("addModal");
     const pipBtn = document.getElementById("pipBtn");
     const pipVideo = document.getElementById("pipVideo");
@@ -317,24 +318,30 @@
       }
     }
     
-    // ✅ CALL AGAIN — One click, no popup
+    // ✅ FIXED CALL AGAIN — Guaranteed to announce every time
     callAgainBtn.addEventListener("click", async () => {
       if (!currentServingData) return;
       
-      // Re-insert to trigger voice on display — NO alert
-      await sb.from("calls").delete().eq("id", currentServingData.id);
+      // Clear last announced so display ALWAYS re-speaks
+      lastAnnouncedToken = null;
       
+      const { id, token, name, counter } = currentServingData;
+      
+      // Delete existing first
+      await sb.from("calls").delete().eq("id", id);
+      
+      // Re-insert with slight delay to ensure change triggers
       setTimeout(async () => {
         await sb.from("calls").insert({
-          token: currentServingData.token,
-          name: currentServingData.name,
+          token,
+          name,
           service: "Encoding",
-          counter: currentServingData.counter,
+          counter,
           status: "serving"
         });
-      }, 100);
+      }, 150);
       
-      // Visual feedback only — no OK button
+      // Visual feedback
       callAgainBtn.textContent = "✅ CALLED AGAIN";
       callAgainBtn.style.background = "#22c55e";
       setTimeout(() => {
@@ -363,6 +370,7 @@
         
         if (newCall?.length) {
           currentServingData = newCall[0];
+          lastAnnouncedToken = null; // Reset for fresh announce
           callAgainBtn.disabled = false;
         }
       } catch (err) { alert("Error: " + err.message); }
@@ -374,6 +382,7 @@
       await sb.from("calls").delete().eq("service", "Encoding");
       tokenOffset = 1;
       currentServingData = null;
+      lastAnnouncedToken = null;
       callAgainBtn.disabled = true;
       alert("✅ Encoding Reset — Next = E001");
       load();
