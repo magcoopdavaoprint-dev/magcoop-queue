@@ -364,11 +364,11 @@
       }
     }
     
-    // ✅ CALL AGAIN
+    // ✅ CALL AGAIN — 1-CLICK ONLY, no confirmation
     callAgainBtn.addEventListener("click", async () => {
       if (!currentServingData) return;
       
-      const { id, token, name, counter } = currentServingData;
+      const { id, token, name } = currentServingData;
       
       await sb.from("calls").delete().eq("id", id);
       
@@ -377,11 +377,12 @@
           token,
           name,
           service: "Encoding",
-          counter: selectedCounter, // ✅ Use CURRENTLY selected counter
+          counter: selectedCounter, // ✅ Uses currently selected counter
           status: "serving"
         });
       }, 150);
       
+      // Visual feedback
       callAgainBtn.textContent = "✅ CALLED AGAIN";
       callAgainBtn.style.background = "#22c55e";
       setTimeout(() => {
@@ -390,22 +391,19 @@
       }, 2000);
     });
     
-    // ✅ DIRECT CALL — call any specific person with SELECTED counter
+    // ✅ DIRECT CALL — uses selected counter
     async function callDirectly(person) {
       try {
-        // Mark previous as finished
         const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
         if (prev?.length) await sb.from("calls").update({ status: "finished" }).eq("id", prev[0].id);
         
-        // Remove from queue
         await sb.from("queue").delete().eq("id", person.id);
         
-        // ✅ Use SELECTED counter — always updates!
         const { data: newCall } = await sb.from("calls").insert({
           token: person.token,
           name: person.name,
           service: "Encoding",
-          counter: selectedCounter, // ✅ THIS IS THE FIX — uses your selected Counter 1 or 2
+          counter: selectedCounter,
           status: "serving"
         }).select();
         
@@ -437,12 +435,11 @@
         
         await sb.from("queue").delete().eq("id", person.id);
         
-        // ✅ Use SELECTED counter
         const { data: newCall } = await sb.from("calls").insert({
           token: person.token,
           name: person.name,
           service: "Encoding",
-          counter: selectedCounter, // ✅ FIXED
+          counter: selectedCounter,
           status: "serving"
         }).select();
         
@@ -501,7 +498,6 @@
             </td>
           </tr>`).join("");
         
-        // ✅ Attach handlers
         body.querySelectorAll(".call-direct-btn").forEach(btn => {
           btn.onclick = async function () {
             const id = this.getAttribute("data-id");
@@ -522,7 +518,6 @@
         });
       }
       
-      // ✅ Display updates correctly — shows whatever counter was saved
       if (serving?.length) {
         document.getElementById("nowServing").textContent = `${serving[0].token} — ${serving[0].name}`;
         document.getElementById("currentServiceLine").textContent = `Counter ${serving[0].counter}`;
