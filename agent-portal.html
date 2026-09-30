@@ -206,7 +206,6 @@
     let selectedCounter = 1;
     let tokenOffset = 0;
     let currentServingData = null;
-    let lastAnnouncedToken = null; // Track to force re-trigger
     const modal = document.getElementById("addModal");
     const pipBtn = document.getElementById("pipBtn");
     const pipVideo = document.getElementById("pipVideo");
@@ -237,6 +236,24 @@
     
     function formatEncodingToken(num) {
       return `E${String(num).padStart(3, '0')}`;
+    }
+    
+    // ✅ Helper: Extract number from token like "E012" → 12
+    function getTokenNumber(token) {
+      if (!token) return 0;
+      const match = token.match(/E(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
+    }
+    
+    // ✅ Fix positions: Re-number all so they match token order
+    async function fixQueuePositions(queueItems) {
+      const sorted = [...queueItems].sort((a, b) => getTokenNumber(a.token) - getTokenNumber(b.token));
+      for (let i = 0; i < sorted.length; i++) {
+        if (sorted[i].position !== i + 1) {
+          await sb.from("queue").update({ position: i + 1 }).eq("id", sorted[i].id);
+        }
+      }
+      return sorted;
     }
     
     function openModal() {
@@ -279,13 +296,8 @@
       
       let max = 0;
       [...(q||[]), ...(c||[])].forEach(r => {
-        let num;
-        if (r.token.startsWith("E")) {
-          num = parseInt(r.token.replace("E", ""), 10);
-        } else {
-          num = parseInt(r.token.replace("MAG-", ""), 10);
-        }
-        if (!isNaN(num) && num > max) max = num;
+        const num = getTokenNumber(r.token);
+        if (num > max) max = num;
       });
       
       const nextNum = tokenOffset > 0 ? tokenOffset : (max + 1);
@@ -303,10 +315,17 @@
       
       try {
         const token = await getNextToken();
-        const { count } = await sb.from("queue").select("*", { count: "exact", head: true }).eq("service", "Encoding");
+        // ✅ Get correct count ONLY for Encoding service
+        const { count: serviceCount } = await sb.from("queue")
+          .select("*", { count: "exact", head: true })
+          .eq("service", "Encoding");
         
         await sb.from("queue").insert({
-          token, name, dept: "Customer Service", service: "Encoding", position: (count || 0) + 1
+          token, 
+          name, 
+          dept: "Customer Service", 
+          service: "Encoding", 
+          position: (serviceCount || 0) + 1
         });
         
         document.getElementById("modalNote").textContent = `✅ Added: ${name} — ${token}`;
@@ -322,15 +341,12 @@
     callAgainBtn.addEventListener("click", async () => {
       if (!currentServingData) return;
       
-      // Clear last announced so display ALWAYS re-speaks
-      lastAnnouncedToken = null;
-      
       const { id, token, name, counter } = currentServingData;
       
       // Delete existing first
       await sb.from("calls").delete().eq("id", id);
       
-      // Re-insert with slight delay to ensure change triggers
+      // Re-insert with delay to ensure change detected
       setTimeout(async () => {
         await sb.from("calls").insert({
           token,
@@ -355,10 +371,20 @@
         const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
         if (prev?.length) await sb.from("calls").update({ status: "finished" }).eq("id", prev[0].id);
         
-        const { data: next } = await sb.from("queue").select("*").eq("service", "Encoding").order("position").limit(1);
-        if (!next?.length) { alert("No Encoding customers in queue!"); return; }
+        // ✅ Get queue sorted by token number — always correct order
+        const { data: allWaiting } = await sb.from("queue")
+          .select("*")
+          .eq("service", "Encoding");
         
-        const person = next[0];
+        if (!allWaiting?.length) { 
+          alert("No Encoding customers in queue!"); 
+          return; 
+        }
+        
+        // ✅ Sort by token number — E011 before E012 always
+        const sortedQueue = [...allWaiting].sort((a, b) => getTokenNumber(a.token) - getTokenNumber(b.token));
+        const person = sortedQueue[0];
+        
         await sb.from("queue").delete().eq("id", person.id);
         const { data: newCall } = await sb.from("calls").insert({
           token: person.token,
@@ -370,7 +396,6 @@
         
         if (newCall?.length) {
           currentServingData = newCall[0];
-          lastAnnouncedToken = null; // Reset for fresh announce
           callAgainBtn.disabled = false;
         }
       } catch (err) { alert("Error: " + err.message); }
@@ -382,18 +407,22 @@
       await sb.from("calls").delete().eq("service", "Encoding");
       tokenOffset = 1;
       currentServingData = null;
-      lastAnnouncedToken = null;
       callAgainBtn.disabled = true;
       alert("✅ Encoding Reset — Next = E001");
       load();
     }
     
     async function load() {
-      const [{ data: q }, { data: serving }, { data: done }] = await Promise.all([
-        sb.from("queue").select("*").eq("service", "Encoding").order("position"),
+      let { data: q } = await sb.from("queue").select("*").eq("service", "Encoding");
+      const [{ data: serving }, { data: done }] = await Promise.all([
         sb.from("calls").select("*").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1),
         sb.from("calls").select("*").eq("service", "Encoding").eq("status", "finished").order("id", { ascending: false }).limit(5)
       ]);
+      
+      // ✅ AUTO-FIX: Re-sort and re-number positions if out of order
+      if (q?.length > 0) {
+        q = await fixQueuePositions(q);
+      }
       
       document.getElementById("waitingCount").textContent = q?.length || 0;
       document.getElementById("callNextBtn").disabled = !q?.length;
@@ -410,6 +439,7 @@
       if (!q?.length) {
         body.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-400">No encoding customers waiting</td></tr>`;
       } else {
+        // ✅ Display in correct order: E011, E012, E013...
         body.innerHTML = q.map((r, i) => `
           <tr class="border-b">
             <td class="py-3">${i+1}</td>
