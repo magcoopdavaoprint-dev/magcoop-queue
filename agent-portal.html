@@ -52,30 +52,13 @@
     .counter-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
     .served-item { border-bottom: 1px solid #f1f5f9; padding: 6px 0; }
     .served-item:last-child { border-bottom: none; }
-    .pip-btn {
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      z-index: 100;
-      background: rgba(255,255,255,0.2);
-      backdrop-filter: blur(6px);
-      border: 1px solid rgba(255,255,255,0.3);
-      color: white;
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .pip-btn:hover { background: rgba(255,255,255,0.3); }
     .call-again-btn {
       background: #f59e0b;
-    }
-    .call-again-btn:hover {
-      background: #d97706;
+      transition: all 0.2s;
     }
     .call-again-btn:active {
-      transform: scale(0.98);
+      transform: scale(0.97);
+      background: #22c55e;
     }
     .call-direct-btn {
       background: #22c55e;
@@ -86,10 +69,7 @@
       font-weight: 600;
       border: none;
       transition: all 0.2s;
-      cursor: pointer !important;
-      pointer-events: auto !important;
-      position: relative;
-      z-index: 10;
+      cursor: pointer;
     }
     .call-direct-btn:hover {
       background: #16a34a;
@@ -100,7 +80,6 @@
       padding: 6px 10px;
       border-radius: 4px;
       transition: background 0.2s;
-      pointer-events: auto !important;
     }
     .remove-btn:hover {
       background: #fef2f2;
@@ -108,8 +87,6 @@
   </style>
 </head>
 <body class="text-slate-800 min-h-screen p-4 md:p-6">
-  <button id="pipBtn" class="pip-btn">🎬 PiP Queue</button>
-  <video id="pipVideo" style="display:none;" muted playsinline></video>
   <div class="max-w-7xl mx-auto">
     <div class="mb-6">
       <h1 class="text-2xl font-bold">
@@ -159,7 +136,7 @@
             </button>
           </div>
           
-          <div class="bg-green-50 rounded-lg p-4 mb-4" id="pipNowServing">
+          <div class="bg-green-50 rounded-lg p-4 mb-4">
             <p class="text-xs text-green-500 uppercase mb-1">Currently Serving — Encoding</p>
             <p class="text-lg font-semibold" id="nowServing">None</p>
             <p class="text-sm text-slate-500 mt-1" id="currentServiceLine"></p>
@@ -177,7 +154,7 @@
             <i class="fa-solid fa-rotate-left"></i> RESET ENCODING QUEUE
           </button>
         </div>
-        <div class="md:col-span-2" id="pipQueueSection">
+        <div class="md:col-span-2">
           <div class="flex justify-between items-center mb-3">
             <h3 class="font-semibold text-lg">Encoding Queue List</h3>
             <button id="clearBtn" class="text-slate-500 text-sm hover:text-red-500">Clear All</button>
@@ -207,8 +184,6 @@
       <div class="space-y-3">
         <input type="text" id="inpName" placeholder="Full Name" class="w-full border rounded-lg px-3 py-2" />
         <input type="text" value="Encoding" readonly class="w-full border rounded-lg px-3 py-2 bg-slate-50 text-slate-500" />
-        <input type="hidden" id="inpService" value="Encoding" />
-        <input type="hidden" id="inpDept" value="Customer Service" />
       </div>
       <div class="flex gap-3 mt-5">
         <button id="btnCancel" class="flex-1 py-2 border rounded-lg">Cancel</button>
@@ -226,7 +201,6 @@
     let selectedCounter = 1;
     let tokenOffset = 0;
     let currentServingData = null;
-    const modal = document.getElementById("addModal");
     const callAgainBtn = document.getElementById("callAgainBtn");
     
     function formatEncodingToken(num) {
@@ -239,34 +213,15 @@
       return match ? parseInt(match[1], 10) : 0;
     }
     
-    async function fixQueuePositions(queueItems) {
-      const sorted = [...queueItems].sort((a, b) => getTokenNumber(a.token) - getTokenNumber(b.token));
-      for (let i = 0; i < sorted.length; i++) {
-        if (sorted[i].position !== i + 1) {
-          await sb.from("queue").update({ position: i + 1 }).eq("id", sorted[i].id);
-        }
+    function setCurrentlyServing(token, name, counter) {
+      if (!token) {
+        document.getElementById("nowServing").textContent = "None";
+        document.getElementById("currentServiceLine").textContent = "";
+        return;
       }
-      return sorted;
-    }
-    
-    // ✅ INSTANT UPDATE function — updates display immediately
-    function updateNowServingDisplay(token, name, counter) {
       document.getElementById("nowServing").textContent = `${token} — ${name}`;
       document.getElementById("currentServiceLine").textContent = `Counter ${counter}`;
     }
-    
-    function openModal() {
-      modal.classList.add("active");
-      document.getElementById("inpName").value = "";
-      document.getElementById("modalNote").textContent = "";
-      setTimeout(() => document.getElementById("inpName").focus(), 50);
-    }
-    function closeModal() { modal.classList.remove("active"); }
-    document.getElementById("addCustomerBtn").addEventListener("click", openModal);
-    document.getElementById("btnCancel").addEventListener("click", closeModal);
-    document.getElementById("btnSave").addEventListener("click", saveCustomer);
-    document.getElementById("clearBtn").addEventListener("click", clearAll);
-    document.getElementById("resetBtn").addEventListener("click", resetQueue);
     
     const btnCounter1 = document.getElementById("btnCounter1");
     const btnCounter2 = document.getElementById("btnCounter2");
@@ -292,161 +247,159 @@
         sb.from("queue").select("token").eq("service", "Encoding"),
         sb.from("calls").select("token").eq("service", "Encoding")
       ]);
-      
       let max = 0;
       [...(q||[]), ...(c||[])].forEach(r => {
         const num = getTokenNumber(r.token);
         if (num > max) max = num;
       });
-      
       const nextNum = tokenOffset > 0 ? tokenOffset : (max + 1);
       if (tokenOffset > 0) tokenOffset = 0;
       return formatEncodingToken(nextNum);
     }
     
-    async function saveCustomer() {
+    async function finishPrevious() {
+      await sb.from("calls")
+        .update({ status: "finished" })
+        .eq("status", "serving")
+        .neq("service", "MAGCOOP Loan");
+    }
+    
+    // ✅ CALL AGAIN — 1-CLICK, NO CONFIRM, NO DUPLICATE
+    callAgainBtn.addEventListener("click", async () => {
+      if (!currentServingData) return;
+      
+      const { token, name } = currentServingData;
+      
+      // ✅ Instant update — ONE display only
+      setCurrentlyServing(token, name, selectedCounter);
+      
+      // ✅ Update database — keep same record, no duplicate
+      const { data: existing } = await sb.from("calls")
+        .select("id")
+        .eq("status", "serving")
+        .eq("service", "Encoding")
+        .limit(1);
+      
+      if (existing?.length) {
+        await sb.from("calls").update({ 
+          counter: selectedCounter 
+        }).eq("id", existing[0].id);
+      } else {
+        await sb.from("calls").insert({
+          token, name,
+          service: "Encoding",
+          counter: selectedCounter,
+          status: "serving"
+        });
+      }
+      
+      // Brief feedback then back to normal
+      callAgainBtn.innerHTML = '<i class="fa-solid fa-check"></i> DONE';
+      setTimeout(() => {
+        callAgainBtn.innerHTML = '<i class="fa-solid fa-bullhorn"></i> 🔁 CALL AGAIN';
+      }, 1500);
+    });
+    
+    // ✅ CALL NEXT — clean switch
+    document.getElementById("callNextBtn").addEventListener("click", async () => {
+      const { data: allWaiting } = await sb.from("queue")
+        .select("*")
+        .eq("service", "Encoding");
+      
+      if (!allWaiting?.length) { 
+        alert("No Encoding customers in queue!"); 
+        return; 
+      }
+      
+      await finishPrevious();
+      
+      const sortedQueue = [...allWaiting].sort((a, b) => getTokenNumber(a.token) - getTokenNumber(b.token));
+      const person = sortedQueue[0];
+      
+      await sb.from("queue").delete().eq("id", person.id);
+      
+      setCurrentlyServing(person.token, person.name, selectedCounter);
+      
+      const { data: newCall } = await sb.from("calls").insert({
+        token: person.token,
+        name: person.name,
+        service: "Encoding",
+        counter: selectedCounter,
+        status: "serving"
+      }).select();
+      
+      if (newCall?.length) {
+        currentServingData = newCall[0];
+        callAgainBtn.disabled = false;
+      }
+    });
+    
+    // ✅ Direct CALL from list
+    async function callDirectly(person) {
+      await finishPrevious();
+      await sb.from("queue").delete().eq("id", person.id);
+      
+      setCurrentlyServing(person.token, person.name, selectedCounter);
+      
+      const { data: newCall } = await sb.from("calls").insert({
+        token: person.token,
+        name: person.name,
+        service: "Encoding",
+        counter: selectedCounter,
+        status: "serving"
+      }).select();
+      
+      if (newCall?.length) {
+        currentServingData = newCall[0];
+        callAgainBtn.disabled = false;
+      }
+    }
+    
+    // ✅ Reset
+    document.getElementById("resetBtn").addEventListener("click", async () => {
+      if (!confirm("⚠️ Reset Encoding Queue?\nLoan queue NOT affected.\nNext = E001")) return;
+      await sb.from("queue").delete().eq("service", "Encoding");
+      await sb.from("calls").delete().eq("service", "Encoding");
+      tokenOffset = 1;
+      currentServingData = null;
+      callAgainBtn.disabled = true;
+      setCurrentlyServing(null);
+      alert("✅ Encoding Reset — Next = E001");
+      load();
+    });
+    
+    // ✅ Add Customer
+    document.getElementById("addCustomerBtn").addEventListener("click", () => {
+      document.getElementById("addModal").classList.add("active");
+    });
+    document.getElementById("btnCancel").addEventListener("click", () => {
+      document.getElementById("addModal").classList.remove("active");
+    });
+    document.getElementById("btnSave").addEventListener("click", async () => {
       const name = document.getElementById("inpName").value.trim();
       if (!name) {
         document.getElementById("modalNote").textContent = "⚠️ Enter a name first";
         document.getElementById("modalNote").style.color = "red";
         return;
       }
+      const token = await getNextToken();
+      const { count } = await sb.from("queue")
+        .select("*", { count: "exact", head: true })
+        .eq("service", "Encoding");
       
-      try {
-        const token = await getNextToken();
-        const { count: serviceCount } = await sb.from("queue")
-          .select("*", { count: "exact", head: true })
-          .eq("service", "Encoding");
-        
-        await sb.from("queue").insert({
-          token, 
-          name, 
-          dept: "Customer Service", 
-          service: "Encoding", 
-          position: (serviceCount || 0) + 1
-        });
-        
-        document.getElementById("modalNote").textContent = `✅ Added: ${name} — ${token}`;
-        document.getElementById("modalNote").style.color = "green";
-        setTimeout(closeModal, 800);
-      } catch (err) {
-        document.getElementById("modalNote").textContent = `❌ ${err.message}`;
-        document.getElementById("modalNote").style.color = "red";
-      }
-    }
-    
-    // ✅ CALL AGAIN — 1-CLICK + INSTANT DISPLAY UPDATE
-    callAgainBtn.addEventListener("click", async () => {
-      if (!currentServingData) return;
+      await sb.from("queue").insert({
+        token, name, service: "Encoding", position: (count || 0) + 1
+      });
       
-      const { id, token, name } = currentServingData;
-      
-      // ✅ UPDATE DISPLAY RIGHT AWAY — no waiting for database
-      updateNowServingDisplay(token, name, selectedCounter);
-      
-      await sb.from("calls").delete().eq("id", id);
-      
-      setTimeout(async () => {
-        const { data: newCall } = await sb.from("calls").insert({
-          token,
-          name,
-          service: "Encoding",
-          counter: selectedCounter,
-          status: "serving"
-        }).select();
-        
-        if (newCall?.length) {
-          currentServingData = newCall[0];
-        }
-      }, 150);
-      
-      callAgainBtn.textContent = "✅ CALLED AGAIN";
-      callAgainBtn.style.background = "#22c55e";
-      setTimeout(() => {
-        callAgainBtn.innerHTML = '<i class="fa-solid fa-bullhorn"></i> 🔁 CALL AGAIN';
-        callAgainBtn.style.background = "";
-      }, 2000);
+      document.getElementById("addModal").classList.remove("active");
     });
     
-    // ✅ DIRECT CALL — INSTANT DISPLAY UPDATE
-    async function callDirectly(person) {
-      try {
-        const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
-        if (prev?.length) await sb.from("calls").update({ status: "finished" }).eq("id", prev[0].id);
-        
-        await sb.from("queue").delete().eq("id", person.id);
-        
-        // ✅ UPDATE DISPLAY RIGHT AWAY
-        updateNowServingDisplay(person.token, person.name, selectedCounter);
-        
-        const { data: newCall } = await sb.from("calls").insert({
-          token: person.token,
-          name: person.name,
-          service: "Encoding",
-          counter: selectedCounter,
-          status: "serving"
-        }).select();
-        
-        if (newCall?.length) {
-          currentServingData = newCall[0];
-          callAgainBtn.disabled = false;
-        }
-      } catch (err) {
-        alert("Error: " + err.message);
-      }
-    }
-    
-    // ✅ CALL NEXT — INSTANT DISPLAY UPDATE
-    document.getElementById("callNextBtn").addEventListener("click", async () => {
-      try {
-        const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
-        if (prev?.length) await sb.from("calls").update({ status: "finished" }).eq("id", prev[0].id);
-        
-        const { data: allWaiting } = await sb.from("queue")
-          .select("*")
-          .eq("service", "Encoding");
-        
-        if (!allWaiting?.length) { 
-          alert("No Encoding customers in queue!"); 
-          return; 
-        }
-        
-        const sortedQueue = [...allWaiting].sort((a, b) => getTokenNumber(a.token) - getTokenNumber(b.token));
-        const person = sortedQueue[0];
-        
-        await sb.from("queue").delete().eq("id", person.id);
-        
-        // ✅ UPDATE DISPLAY RIGHT AWAY — no delay!
-        updateNowServingDisplay(person.token, person.name, selectedCounter);
-        
-        const { data: newCall } = await sb.from("calls").insert({
-          token: person.token,
-          name: person.name,
-          service: "Encoding",
-          counter: selectedCounter,
-          status: "serving"
-        }).select();
-        
-        if (newCall?.length) {
-          currentServingData = newCall[0];
-          callAgainBtn.disabled = false;
-        }
-      } catch (err) { alert("Error: " + err.message); }
-    });
-    
-    async function resetQueue() {
-      if (!confirm("⚠️ Reset Encoding Queue only?\nLoan queue will NOT be affected.\n\nNext Encoding = E001")) return;
+    document.getElementById("clearBtn").addEventListener("click", async () => {
+      if (!confirm("Clear all Encoding customers?")) return;
       await sb.from("queue").delete().eq("service", "Encoding");
-      await sb.from("calls").delete().eq("service", "Encoding");
-      tokenOffset = 1;
-      currentServingData = null;
-      callAgainBtn.disabled = true;
-      document.getElementById("nowServing").textContent = "None";
-      document.getElementById("currentServiceLine").textContent = "";
-      alert("✅ Encoding Reset — Next = E001");
-      load();
-    }
+    });
     
+    // ✅ Load & sync
     async function load() {
       let { data: q } = await sb.from("queue").select("*").eq("service", "Encoding");
       const [{ data: serving }, { data: done }] = await Promise.all([
@@ -455,7 +408,13 @@
       ]);
       
       if (q?.length > 0) {
-        q = await fixQueuePositions(q);
+        const sorted = [...q].sort((a, b) => getTokenNumber(a.token) - getTokenNumber(b.token));
+        for (let i = 0; i < sorted.length; i++) {
+          if (sorted[i].position !== i + 1) {
+            await sb.from("queue").update({ position: i + 1 }).eq("id", sorted[i].id);
+          }
+        }
+        q = sorted;
       }
       
       document.getElementById("waitingCount").textContent = q?.length || 0;
@@ -464,13 +423,12 @@
       if (serving?.length) {
         currentServingData = serving[0];
         callAgainBtn.disabled = false;
-        // ✅ Load from database but show correct counter
-        updateNowServingDisplay(serving[0].token, serving[0].name, serving[0].counter);
+        setCurrentlyServing(serving[0].token, serving[0].name, serving[0].counter);
       } else {
-        currentServingData = null;
-        callAgainBtn.disabled = true;
-        document.getElementById("nowServing").textContent = "None";
-        document.getElementById("currentServiceLine").textContent = "";
+        if (!currentServingData?.id) {
+          setCurrentlyServing(null);
+          callAgainBtn.disabled = true;
+        }
       }
       
       const body = document.getElementById("queueBody");
@@ -490,19 +448,17 @@
         
         body.querySelectorAll(".call-direct-btn").forEach(btn => {
           btn.onclick = async function () {
-            const id = this.getAttribute("data-id");
-            const token = this.getAttribute("data-token");
-            const name = this.getAttribute("data-name");
-            if (confirm(`Call ${token} — ${name} now?`)) {
-              await callDirectly({ id, token, name });
-            }
+            await callDirectly({
+              id: this.dataset.id,
+              token: this.dataset.token,
+              name: this.dataset.name
+            });
           };
         });
-        
         body.querySelectorAll(".remove-btn").forEach(btn => {
           btn.onclick = async function () {
             if (confirm("Remove this customer?")) {
-              await sb.from("queue").delete().eq("id", this.getAttribute("data-id"));
+              await sb.from("queue").delete().eq("id", this.dataset.id);
             }
           };
         });
@@ -520,11 +476,6 @@
       }
     }
     
-    async function clearAll() {
-      if (!confirm("Clear all Encoding customers?")) return;
-      await sb.from("queue").delete().eq("service", "Encoding");
-    }
-    
     sb.channel("q")
       .on("postgres_changes", { event: "*", schema: "public", table: "queue" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "calls" }, load)
@@ -535,7 +486,7 @@
         await sb.from("queue").select("*").limit(1);
         document.getElementById("connStatus").textContent = "✅ Connected — Auto-updating";
         document.getElementById("connStatus").style.color = "#86efac";
-      } catch (e) {
+      } catch {
         document.getElementById("connStatus").textContent = "❌ Connection failed";
         document.getElementById("connStatus").style.color = "#fca5a5";
       }
