@@ -234,7 +234,6 @@
     let selectedCounter = 1;
     let tokenOffset = 0;
     let currentServingData = null;
-    let queueData = []; // Store queue data for button handlers
     const modal = document.getElementById("addModal");
     const pipBtn = document.getElementById("pipBtn");
     const pipVideo = document.getElementById("pipVideo");
@@ -378,7 +377,7 @@
           token,
           name,
           service: "Encoding",
-          counter,
+          counter: selectedCounter, // ✅ Use CURRENTLY selected counter
           status: "serving"
         });
       }, 150);
@@ -391,7 +390,7 @@
       }, 2000);
     });
     
-    // ✅ DIRECT CALL — call any specific person
+    // ✅ DIRECT CALL — call any specific person with SELECTED counter
     async function callDirectly(person) {
       try {
         // Mark previous as finished
@@ -401,12 +400,12 @@
         // Remove from queue
         await sb.from("queue").delete().eq("id", person.id);
         
-        // Send to serving
+        // ✅ Use SELECTED counter — always updates!
         const { data: newCall } = await sb.from("calls").insert({
           token: person.token,
           name: person.name,
           service: "Encoding",
-          counter: selectedCounter,
+          counter: selectedCounter, // ✅ THIS IS THE FIX — uses your selected Counter 1 or 2
           status: "serving"
         }).select();
         
@@ -437,11 +436,13 @@
         const person = sortedQueue[0];
         
         await sb.from("queue").delete().eq("id", person.id);
+        
+        // ✅ Use SELECTED counter
         const { data: newCall } = await sb.from("calls").insert({
           token: person.token,
           name: person.name,
           service: "Encoding",
-          counter: selectedCounter,
+          counter: selectedCounter, // ✅ FIXED
           status: "serving"
         }).select();
         
@@ -474,8 +475,6 @@
         q = await fixQueuePositions(q);
       }
       
-      queueData = q || []; // Save data for button handlers
-      
       document.getElementById("waitingCount").textContent = q?.length || 0;
       document.getElementById("callNextBtn").disabled = !q?.length;
       
@@ -502,7 +501,7 @@
             </td>
           </tr>`).join("");
         
-        // ✅ Attach handlers using direct data attributes
+        // ✅ Attach handlers
         body.querySelectorAll(".call-direct-btn").forEach(btn => {
           btn.onclick = async function () {
             const id = this.getAttribute("data-id");
@@ -514,7 +513,6 @@
           };
         });
         
-        // ✅ Remove handlers
         body.querySelectorAll(".remove-btn").forEach(btn => {
           btn.onclick = async function () {
             if (confirm("Remove this customer?")) {
@@ -524,6 +522,7 @@
         });
       }
       
+      // ✅ Display updates correctly — shows whatever counter was saved
       if (serving?.length) {
         document.getElementById("nowServing").textContent = `${serving[0].token} — ${serving[0].name}`;
         document.getElementById("currentServiceLine").textContent = `Counter ${serving[0].counter}`;
