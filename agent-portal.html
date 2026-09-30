@@ -77,6 +77,29 @@
     .call-again-btn:active {
       transform: scale(0.98);
     }
+    .call-direct-btn {
+      background: #22c55e;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: none;
+      transition: all 0.2s;
+    }
+    .call-direct-btn:hover {
+      background: #16a34a;
+    }
+    .remove-btn {
+      color: #ef4444;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .remove-btn:hover {
+      background: #fef2f2;
+    }
   </style>
 </head>
 <body class="text-slate-800 min-h-screen p-4 md:p-6">
@@ -167,7 +190,7 @@
                 <th class="py-2 w-12">#</th>
                 <th class="py-2 w-28">Token</th>
                 <th class="py-2">Name</th>
-                <th class="py-2 w-16"></th>
+                <th class="py-2 w-32 text-center">Action</th>
               </tr>
             </thead>
             <tbody id="queueBody">
@@ -315,7 +338,6 @@
       
       try {
         const token = await getNextToken();
-        // ✅ Get correct count ONLY for Encoding service
         const { count: serviceCount } = await sb.from("queue")
           .select("*", { count: "exact", head: true })
           .eq("service", "Encoding");
@@ -337,16 +359,14 @@
       }
     }
     
-    // ✅ FIXED CALL AGAIN — Guaranteed to announce every time
+    // ✅ CALL AGAIN
     callAgainBtn.addEventListener("click", async () => {
       if (!currentServingData) return;
       
       const { id, token, name, counter } = currentServingData;
       
-      // Delete existing first
       await sb.from("calls").delete().eq("id", id);
       
-      // Re-insert with delay to ensure change detected
       setTimeout(async () => {
         await sb.from("calls").insert({
           token,
@@ -357,7 +377,6 @@
         });
       }, 150);
       
-      // Visual feedback
       callAgainBtn.textContent = "✅ CALLED AGAIN";
       callAgainBtn.style.background = "#22c55e";
       setTimeout(() => {
@@ -366,12 +385,39 @@
       }, 2000);
     });
     
+    // ✅ DIRECT CALL from list — call any specific person
+    async function callDirectly(person) {
+      try {
+        // Mark previous as finished
+        const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
+        if (prev?.length) await sb.from("calls").update({ status: "finished" }).eq("id", prev[0].id);
+        
+        // Remove from queue
+        await sb.from("queue").delete().eq("id", person.id);
+        
+        // Send to serving
+        const { data: newCall } = await sb.from("calls").insert({
+          token: person.token,
+          name: person.name,
+          service: "Encoding",
+          counter: selectedCounter,
+          status: "serving"
+        }).select();
+        
+        if (newCall?.length) {
+          currentServingData = newCall[0];
+          callAgainBtn.disabled = false;
+        }
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    }
+    
     document.getElementById("callNextBtn").addEventListener("click", async () => {
       try {
         const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
         if (prev?.length) await sb.from("calls").update({ status: "finished" }).eq("id", prev[0].id);
         
-        // ✅ Get queue sorted by token number — always correct order
         const { data: allWaiting } = await sb.from("queue")
           .select("*")
           .eq("service", "Encoding");
@@ -381,7 +427,6 @@
           return; 
         }
         
-        // ✅ Sort by token number — E011 before E012 always
         const sortedQueue = [...allWaiting].sort((a, b) => getTokenNumber(a.token) - getTokenNumber(b.token));
         const person = sortedQueue[0];
         
@@ -419,7 +464,6 @@
         sb.from("calls").select("*").eq("service", "Encoding").eq("status", "finished").order("id", { ascending: false }).limit(5)
       ]);
       
-      // ✅ AUTO-FIX: Re-sort and re-number positions if out of order
       if (q?.length > 0) {
         q = await fixQueuePositions(q);
       }
@@ -439,17 +483,34 @@
       if (!q?.length) {
         body.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-400">No encoding customers waiting</td></tr>`;
       } else {
-        // ✅ Display in correct order: E011, E012, E013...
         body.innerHTML = q.map((r, i) => `
           <tr class="border-b">
             <td class="py-3">${i+1}</td>
             <td class="py-3"><span class="token-badge">${r.token}</span></td>
             <td class="py-3">${r.name}</td>
-            <td class="py-3 text-red-500 cursor-pointer hover:text-red-700" data-id="${r.id}">✕</td>
+            <td class="py-3 text-center">
+              <button class="call-direct-btn mr-2" data-id="${r.id}">📞 CALL</button>
+              <span class="remove-btn" data-id="${r.id}">✕</span>
+            </td>
           </tr>`).join("");
-        body.querySelectorAll("[data-id]").forEach(b => {
-          b.addEventListener("click", async () => {
-            if (confirm("Remove this customer?")) await sb.from("queue").delete().eq("id", b.dataset.id);
+        
+        // Attach direct call handlers
+        body.querySelectorAll(".call-direct-btn").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            const id = btn.dataset.id;
+            const person = q.find(item => item.id === id);
+            if (person && confirm(`Call ${person.token} — ${person.name} now?`)) {
+              await callDirectly(person);
+            }
+          });
+        });
+        
+        // Attach remove handlers
+        body.querySelectorAll(".remove-btn").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            if (confirm("Remove this customer?")) {
+              await sb.from("queue").delete().eq("id", btn.dataset.id);
+            }
           });
         });
       }
