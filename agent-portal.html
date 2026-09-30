@@ -79,13 +79,17 @@
     }
     .call-direct-btn {
       background: #22c55e;
-      color: white;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 0.75rem;
+      color: white !important;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
       font-weight: 600;
       border: none;
       transition: all 0.2s;
+      cursor: pointer !important;
+      pointer-events: auto !important;
+      position: relative;
+      z-index: 10;
     }
     .call-direct-btn:hover {
       background: #16a34a;
@@ -93,9 +97,10 @@
     .remove-btn {
       color: #ef4444;
       cursor: pointer;
-      padding: 4px 8px;
+      padding: 6px 10px;
       border-radius: 4px;
       transition: background 0.2s;
+      pointer-events: auto !important;
     }
     .remove-btn:hover {
       background: #fef2f2;
@@ -190,7 +195,7 @@
                 <th class="py-2 w-12">#</th>
                 <th class="py-2 w-28">Token</th>
                 <th class="py-2">Name</th>
-                <th class="py-2 w-32 text-center">Action</th>
+                <th class="py-2 w-36 text-center">Action</th>
               </tr>
             </thead>
             <tbody id="queueBody">
@@ -229,6 +234,7 @@
     let selectedCounter = 1;
     let tokenOffset = 0;
     let currentServingData = null;
+    let queueData = []; // Store queue data for button handlers
     const modal = document.getElementById("addModal");
     const pipBtn = document.getElementById("pipBtn");
     const pipVideo = document.getElementById("pipVideo");
@@ -385,7 +391,7 @@
       }, 2000);
     });
     
-    // ✅ DIRECT CALL from list — call any specific person
+    // ✅ DIRECT CALL — call any specific person
     async function callDirectly(person) {
       try {
         // Mark previous as finished
@@ -468,6 +474,8 @@
         q = await fixQueuePositions(q);
       }
       
+      queueData = q || []; // Save data for button handlers
+      
       document.getElementById("waitingCount").textContent = q?.length || 0;
       document.getElementById("callNextBtn").disabled = !q?.length;
       
@@ -489,29 +497,30 @@
             <td class="py-3"><span class="token-badge">${r.token}</span></td>
             <td class="py-3">${r.name}</td>
             <td class="py-3 text-center">
-              <button class="call-direct-btn mr-2" data-id="${r.id}">📞 CALL</button>
+              <button class="call-direct-btn" data-id="${r.id}" data-token="${r.token}" data-name="${r.name}">📞 CALL</button>
               <span class="remove-btn" data-id="${r.id}">✕</span>
             </td>
           </tr>`).join("");
         
-        // Attach direct call handlers
+        // ✅ Attach handlers using direct data attributes
         body.querySelectorAll(".call-direct-btn").forEach(btn => {
-          btn.addEventListener("click", async () => {
-            const id = btn.dataset.id;
-            const person = q.find(item => item.id === id);
-            if (person && confirm(`Call ${person.token} — ${person.name} now?`)) {
-              await callDirectly(person);
+          btn.onclick = async function () {
+            const id = this.getAttribute("data-id");
+            const token = this.getAttribute("data-token");
+            const name = this.getAttribute("data-name");
+            if (confirm(`Call ${token} — ${name} now?`)) {
+              await callDirectly({ id, token, name });
             }
-          });
+          };
         });
         
-        // Attach remove handlers
+        // ✅ Remove handlers
         body.querySelectorAll(".remove-btn").forEach(btn => {
-          btn.addEventListener("click", async () => {
+          btn.onclick = async function () {
             if (confirm("Remove this customer?")) {
-              await sb.from("queue").delete().eq("id", btn.dataset.id);
+              await sb.from("queue").delete().eq("id", this.getAttribute("data-id"));
             }
-          });
+          };
         });
       }
       
