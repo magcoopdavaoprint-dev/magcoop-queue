@@ -108,19 +108,15 @@
   </style>
 </head>
 <body class="text-slate-800 min-h-screen p-4 md:p-6">
-  <!-- 🎬 PICTURE-IN-PICTURE BUTTON -->
   <button id="pipBtn" class="pip-btn">🎬 PiP Queue</button>
-  <!-- Hidden video for PiP -->
   <video id="pipVideo" style="display:none;" muted playsinline></video>
   <div class="max-w-7xl mx-auto">
-    <!-- Header -->
     <div class="mb-6">
       <h1 class="text-2xl font-bold">
         <span style="color:#0b3d91">MAG</span><span style="color:#f5ce00">COOP</span> Portal - Encoding
       </h1>
       <p class="text-sm mt-1 text-white/70" id="connStatus">Checking connection...</p>
     </div>
-    <!-- Top Row: Stats & Quick Actions -->
     <div class="grid grid-cols-1 md:grid-cols-8 gap-4 mb-4">
       <div class="md:col-span-3 bg-white rounded-xl p-4 shadow-sm">
         <p class="text-sm text-slate-500 mb-2"><i class="fa-regular fa-clock"></i> Recently Served</p>
@@ -148,10 +144,8 @@
         </div>
       </div>
     </div>
-    <!-- Main: Counter Controls + Queue List -->
     <div class="bg-white rounded-xl shadow-sm p-5">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- LEFT: Counter Controls -->
         <div class="md:col-span-1">
           <h3 class="font-semibold text-lg mb-1">Counter Selection</h3>
           <p class="text-sm text-slate-500 mb-3">Encoding customers only</p>
@@ -183,7 +177,6 @@
             <i class="fa-solid fa-rotate-left"></i> RESET ENCODING QUEUE
           </button>
         </div>
-        <!-- RIGHT: Queue List -->
         <div class="md:col-span-2" id="pipQueueSection">
           <div class="flex justify-between items-center mb-3">
             <h3 class="font-semibold text-lg">Encoding Queue List</h3>
@@ -208,7 +201,6 @@
       </div>
     </div>
   </div>
-  <!-- Add Customer Modal -->
   <div id="addModal" class="modal-overlay">
     <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
       <h3 class="text-lg font-bold mb-4">Add Encoding Customer</h3>
@@ -235,45 +227,18 @@
     let tokenOffset = 0;
     let currentServingData = null;
     const modal = document.getElementById("addModal");
-    const pipBtn = document.getElementById("pipBtn");
-    const pipVideo = document.getElementById("pipVideo");
     const callAgainBtn = document.getElementById("callAgainBtn");
-    
-    // 🎬 PICTURE-IN-PICTURE
-    pipBtn.addEventListener("click", async () => {
-      try {
-        if (document.pictureInPictureElement) {
-          await document.exitPictureInPicture();
-          return;
-        }
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: { cursor: "always" },
-          audio: false
-        });
-        pipVideo.srcObject = stream;
-        await pipVideo.play();
-        await pipVideo.requestPictureInPicture();
-        pipVideo.addEventListener("leavepictureinpicture", () => {
-          stream.getTracks().forEach(t => t.stop());
-          pipVideo.srcObject = null;
-        });
-      } catch (err) {
-        alert("⚠️ PiP not available.\nUse Chrome or Edge.\nClick the button → select this tab → Share.");
-      }
-    });
     
     function formatEncodingToken(num) {
       return `E${String(num).padStart(3, '0')}`;
     }
     
-    // ✅ Helper: Extract number from token like "E012" → 12
     function getTokenNumber(token) {
       if (!token) return 0;
       const match = token.match(/E(\d+)/);
       return match ? parseInt(match[1], 10) : 0;
     }
     
-    // ✅ Fix positions: Re-number all so they match token order
     async function fixQueuePositions(queueItems) {
       const sorted = [...queueItems].sort((a, b) => getTokenNumber(a.token) - getTokenNumber(b.token));
       for (let i = 0; i < sorted.length; i++) {
@@ -282,6 +247,12 @@
         }
       }
       return sorted;
+    }
+    
+    // ✅ INSTANT UPDATE function — updates display immediately
+    function updateNowServingDisplay(token, name, counter) {
+      document.getElementById("nowServing").textContent = `${token} — ${name}`;
+      document.getElementById("currentServiceLine").textContent = `Counter ${counter}`;
     }
     
     function openModal() {
@@ -364,25 +335,31 @@
       }
     }
     
-    // ✅ CALL AGAIN — 1-CLICK ONLY, no confirmation
+    // ✅ CALL AGAIN — 1-CLICK + INSTANT DISPLAY UPDATE
     callAgainBtn.addEventListener("click", async () => {
       if (!currentServingData) return;
       
       const { id, token, name } = currentServingData;
       
+      // ✅ UPDATE DISPLAY RIGHT AWAY — no waiting for database
+      updateNowServingDisplay(token, name, selectedCounter);
+      
       await sb.from("calls").delete().eq("id", id);
       
       setTimeout(async () => {
-        await sb.from("calls").insert({
+        const { data: newCall } = await sb.from("calls").insert({
           token,
           name,
           service: "Encoding",
-          counter: selectedCounter, // ✅ Uses currently selected counter
+          counter: selectedCounter,
           status: "serving"
-        });
+        }).select();
+        
+        if (newCall?.length) {
+          currentServingData = newCall[0];
+        }
       }, 150);
       
-      // Visual feedback
       callAgainBtn.textContent = "✅ CALLED AGAIN";
       callAgainBtn.style.background = "#22c55e";
       setTimeout(() => {
@@ -391,13 +368,16 @@
       }, 2000);
     });
     
-    // ✅ DIRECT CALL — uses selected counter
+    // ✅ DIRECT CALL — INSTANT DISPLAY UPDATE
     async function callDirectly(person) {
       try {
         const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
         if (prev?.length) await sb.from("calls").update({ status: "finished" }).eq("id", prev[0].id);
         
         await sb.from("queue").delete().eq("id", person.id);
+        
+        // ✅ UPDATE DISPLAY RIGHT AWAY
+        updateNowServingDisplay(person.token, person.name, selectedCounter);
         
         const { data: newCall } = await sb.from("calls").insert({
           token: person.token,
@@ -416,6 +396,7 @@
       }
     }
     
+    // ✅ CALL NEXT — INSTANT DISPLAY UPDATE
     document.getElementById("callNextBtn").addEventListener("click", async () => {
       try {
         const { data: prev } = await sb.from("calls").select("id").eq("status", "serving").neq("service", "MAGCOOP Loan").limit(1);
@@ -434,6 +415,9 @@
         const person = sortedQueue[0];
         
         await sb.from("queue").delete().eq("id", person.id);
+        
+        // ✅ UPDATE DISPLAY RIGHT AWAY — no delay!
+        updateNowServingDisplay(person.token, person.name, selectedCounter);
         
         const { data: newCall } = await sb.from("calls").insert({
           token: person.token,
@@ -457,6 +441,8 @@
       tokenOffset = 1;
       currentServingData = null;
       callAgainBtn.disabled = true;
+      document.getElementById("nowServing").textContent = "None";
+      document.getElementById("currentServiceLine").textContent = "";
       alert("✅ Encoding Reset — Next = E001");
       load();
     }
@@ -478,9 +464,13 @@
       if (serving?.length) {
         currentServingData = serving[0];
         callAgainBtn.disabled = false;
+        // ✅ Load from database but show correct counter
+        updateNowServingDisplay(serving[0].token, serving[0].name, serving[0].counter);
       } else {
         currentServingData = null;
         callAgainBtn.disabled = true;
+        document.getElementById("nowServing").textContent = "None";
+        document.getElementById("currentServiceLine").textContent = "";
       }
       
       const body = document.getElementById("queueBody");
@@ -516,14 +506,6 @@
             }
           };
         });
-      }
-      
-      if (serving?.length) {
-        document.getElementById("nowServing").textContent = `${serving[0].token} — ${serving[0].name}`;
-        document.getElementById("currentServiceLine").textContent = `Counter ${serving[0].counter}`;
-      } else {
-        document.getElementById("nowServing").textContent = "None";
-        document.getElementById("currentServiceLine").textContent = "";
       }
       
       const list = document.getElementById("recentlyServedList");
