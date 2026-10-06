@@ -10,12 +10,7 @@
     tailwind.config = {
       theme: {
         extend: {
-          colors: { 
-            primary: '#2563eb', 
-            dark: '#0f172a', 
-            accent: '#f59e0b', 
-            loan: '#8b5cf6'
-          }
+          colors: { primary: '#2563eb', dark: '#0f172a', accent: '#f59e0b', loan: '#8b5cf6' }
         }
       }
     }
@@ -23,91 +18,82 @@
   <style>
     html, body { height: 100%; margin: 0; overflow: hidden; }
     body { background: #0f172a; color: white; font-family: 'Inter', sans-serif; }
-    .token-encoding { font-size: clamp(3.5rem, 9vw, 6rem); font-weight: 900; color: #f59e0b; line-height: 1; letter-spacing: 0.05em; }
-    .token-loan { font-size: clamp(3.5rem, 9vw, 6rem); font-weight: 900; color: #8b5cf6; line-height: 1; letter-spacing: 0.05em; }
-    .name-big { font-size: clamp(1.8rem, 4.5vw, 3rem); font-weight: 800; text-transform: uppercase; line-height: 1.2; }
-    .counter-badge { background: #2563eb; padding: 0.75rem 2.5rem; border-radius: 9999px; font-weight: 700; font-size: clamp(1.1rem, 2vw, 1.4rem); display: inline-block; }
-    .loan-badge { background: #8b5cf6; padding: 0.75rem 2.5rem; border-radius: 9999px; font-weight: 700; font-size: clamp(1.1rem, 2vw, 1.4rem); display: inline-block; }
+    .token-encoding { font-size: clamp(3rem, 10vw, 4.5rem); font-weight: 900; color: #f59e0b; line-height: 1; }
+    .token-loan { font-size: clamp(3rem, 10vw, 4.5rem); font-weight: 900; color: #8b5cf6; line-height: 1; }
+    .name-big { font-size: clamp(2rem, 7vw, 3.5rem); font-weight: 800; text-transform: uppercase; line-height: 1; }
+    .counter-badge { background: #2563eb; padding: 0.5rem 2rem; border-radius: 9999px; font-weight: 700; display: inline-block; }
+    .loan-badge { background: #8b5cf6; padding: 0.5rem 2rem; border-radius: 9999px; font-weight: 700; display: inline-block; }
     .divider-v { border-right: 1px solid rgba(71, 85, 105, 0.4); }
     .divider-h { border-bottom: 1px solid rgba(71, 85, 105, 0.4); }
-    .qr-box { background: white; border-radius: 16px; padding: 1rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-    .click-hint { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,0.97); cursor: pointer; }
+    .qr-box { background: white; border-radius: 12px; padding: 0.8rem; display: flex; align-items: center; justify-content: center; }
+    .click-hint { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,0.95); cursor: pointer; }
     .click-hint.hidden { display: none; }
-    .next-item { padding: 0.5rem 0; border-bottom: 1px solid rgba(71, 85, 105, 0.2); font-size: clamp(0.95rem, 1.5vw, 1.1rem); }
+    .next-item { padding: 0.3rem 0; border-bottom: 1px solid rgba(71, 85, 105, 0.2); }
     .next-item:last-child { border-bottom: none; }
-    .section-label { font-size: clamp(1rem, 1.8vw, 1.25rem); letter-spacing: 0.1em; }
-    .proceed-text { font-size: clamp(1rem, 2vw, 1.3rem); }
   </style>
 </head>
 <body class="h-screen flex flex-col">
-  <!-- 🔊 CLICK ONCE — ENABLE SOUND (Required by all browsers) -->
+  <!-- 🔊 CLICK ONCE — ENABLE SOUND -->
   <div id="clickHint" class="click-hint">
-    <div class="text-center p-8 max-w-lg">
-      <div class="text-7xl mb-6">🔊</div>
-      <h2 class="text-2xl font-bold mb-3">👆 CLICK HERE ONCE FIRST</h2>
-      <p class="text-amber-400 font-semibold text-lg mb-2">Sound will play automatically</p>
-      <p class="text-slate-400">Required by browser security — click anywhere</p>
+    <div class="text-center p-6">
+      <div class="text-5xl mb-4">🔊</div>
+      <h2 class="text-xl font-bold mb-2">👆 CLICK HERE ONCE FIRST</h2>
+      <p class="text-amber-400 font-semibold mb-1">Before Casting to TV</p>
+      <p class="text-slate-400 text-sm">Sound plays from your device speakers</p>
     </div>
   </div>
-
-  <header class="py-4 px-8 flex justify-between items-center border-b border-slate-700/40 shrink-0">
-    <h1 class="text-2xl md:text-3xl font-bold tracking-tight">
+  <!-- HEADER -->
+  <header class="py-3 px-6 flex justify-between items-center border-b border-slate-700/40 shrink-0">
+    <h1 class="text-xl font-bold">
       <span class="text-blue-500">MAGCOOP</span> <span class="text-amber-400">DAVAO</span> — QUEUE DISPLAY
     </h1>
-    <div class="text-right">
-      <p class="text-green-400 font-semibold" id="status">🟢 LIVE — Connected</p>
-      <p class="text-sm mt-1 text-slate-400" id="voiceStatus">Waiting for click...</p>
+    <div class="text-right text-sm">
+      <p class="text-green-400" id="status">🟢 LIVE — Connected</p>
+      <p class="text-xs mt-1" id="voiceStatus">Waiting for click...</p>
     </div>
   </header>
-
+  <!-- MAIN 2×2 GRID -->
   <main class="flex-1 grid grid-cols-2 grid-rows-2 min-h-0">
-    <!-- ENCODING -->
+    <!-- TOP LEFT: ENCODING -->
     <section class="flex flex-col items-center justify-center p-6 divider-h divider-v">
-      <p class="section-label text-slate-400 mb-6 uppercase font-medium">NOW SERVING — ENCODING</p>
+      <p class="text-slate-400 mb-4">NOW SERVING — ENCODING</p>
       <p class="token-encoding" id="encToken">—</p>
-      <p class="name-big mt-4" id="encName">—</p>
-      <p class="proceed-text text-slate-300 mt-6" id="encProceed">Waiting for next...</p>
-      <p class="mt-8"><span class="counter-badge" id="encCounterBtn">Counter 1</span></p>
+      <p class="name-big mt-3" id="encName">—</p>
+      <p class="text-slate-300 mt-4" id="encProceed">Waiting for next...</p>
+      <p class="mt-5"><span class="counter-badge" id="encCounterBtn">Counter 1</span></p>
     </section>
-
-    <!-- LOAN -->
+    <!-- TOP RIGHT: LOAN -->
     <section class="flex flex-col items-center justify-center p-6 divider-h">
-      <p class="section-label text-purple-400 mb-6 uppercase font-medium">NOW SERVING — LOAN</p>
+      <p class="text-purple-400 mb-4">NOW SERVING — LOAN</p>
       <p class="token-loan" id="loanToken">—</p>
-      <p class="name-big mt-4 text-purple-300" id="loanName">—</p>
-      <p class="proceed-text text-slate-300 mt-6" id="loanProceed">Waiting for next loan application...</p>
-      <p class="mt-8"><span class="loan-badge">Loan Counter</span></p>
+      <p class="name-big mt-3 text-purple-300" id="loanName">—</p>
+      <p class="text-slate-300 mt-4" id="loanProceed">Waiting for next loan application...</p>
+      <p class="mt-5"><span class="loan-badge">Loan Counter</span></p>
     </section>
-
-    <!-- NEXT IN QUEUE -->
-    <section class="flex items-start justify-between p-8 divider-v bg-slate-900/30">
+    <!-- BOTTOM LEFT: NEXT IN QUEUE -->
+    <section class="flex items-start justify-between p-6 divider-v">
       <div class="w-[48%]">
-        <p class="text-xl font-semibold text-slate-300 mb-1">NEXT IN QUEUE</p>
-        <p class="text-sm text-slate-400 mb-3">ENCODING</p>
-        <div id="encNextList" class="text-slate-200">
-          <p class="text-slate-400 italic">No customers waiting</p>
+        <p class="text-lg font-semibold text-slate-300">NEXT IN QUEUE</p>
+        <p class="text-sm text-slate-400 mt-1 mb-2">ENCODING</p>
+        <div id="encNextList" class="text-slate-200 text-sm">
+          <p>No customers waiting</p>
         </div>
       </div>
       <div class="w-[48%] text-right">
-        <p class="text-xl font-semibold text-slate-300 mb-1">NEXT IN QUEUE</p>
-        <p class="text-sm text-slate-400 mb-3">LOAN</p>
-        <div id="loanNextList" class="text-slate-200">
-          <p class="text-slate-400 italic">No customers waiting</p>
+        <p class="text-lg font-semibold text-slate-300">NEXT IN QUEUE</p>
+        <p class="text-sm text-slate-400 mt-1 mb-2">LOAN</p>
+        <div id="loanNextList" class="text-slate-200 text-sm">
+          <p>No customers waiting</p>
         </div>
       </div>
     </section>
-
-    <!-- QR CODE -->
-    <section class="flex flex-col items-center justify-center p-8 bg-slate-900/30">
-      <h3 class="text-xl font-semibold text-slate-300 mb-4">📱 SCAN TO JOIN QUEUE</h3>
-      <div class="qr-box mb-3">
-        <img 
-          src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=https%3A%2F%2Fmagcoopdavaoprint-dev.github.io%2Fmagcoop-queue%2Fjoin-queue.html" 
-          alt="QR Code" 
-          class="w-64 h-64" 
-        />
+    <!-- BOTTOM RIGHT: QR CODE -->
+    <section class="flex flex-col items-center justify-center p-6">
+      <h3 class="text-lg font-semibold text-slate-300 mb-4">📱 SCAN TO JOIN QUEUE</h3>
+      <div class="qr-box mb-2">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=https%3A%2F%2Fmagcoopdavaoprint-dev.github.io%2Fmagcoop-queue%2Fjoin-queue.html" alt="QR" class="w-52 h-52" />
       </div>
-      <p class="text-sm text-slate-400 text-center max-w-xs">Point camera at QR → Enter name → Submit</p>
+      <p class="text-xs text-slate-400 text-center">Point camera at QR → Enter name → Submit</p>
     </section>
   </main>
 
@@ -123,25 +109,17 @@
     const clickHint = document.getElementById("clickHint");
     const voiceStatus = document.getElementById("voiceStatus");
 
-    // ✅ Use browser built-in speech — NO Google TTS link!
+    // ✅ Use browser built-in speech — WORKS EVERYWHERE (file + GitHub Pages)
     function speak(text) {
       if (!audioUnlocked) return;
       if (!window.speechSynthesis) return;
       
       try {
-        window.speechSynthesis.cancel(); // Stop any previous
+        window.speechSynthesis.cancel();
         const utt = new SpeechSynthesisUtterance(text);
         utt.lang = "en-PH";
-        utt.rate = 0.85; // Slower, easier to hear
+        utt.rate = 0.85;
         utt.volume = 1;
-        // Pick a clear voice if available
-        const voices = window.speechSynthesis.getVoices();
-        if (voices.length > 0) {
-          const preferred = voices.find(v => 
-            v.lang === 'en-PH' || v.lang === 'en-US' || v.lang.startsWith('en')
-          );
-          if (preferred) utt.voice = preferred;
-        }
         window.speechSynthesis.speak(utt);
       } catch (err) {
         console.log("Speech error:", err);
@@ -153,9 +131,7 @@
       audioUnlocked = true;
       clickHint.classList.add("hidden");
       
-      // Load voices
       if (window.speechSynthesis) {
-        window.speechSynthesis.onvoiceschanged = () => {};
         voiceStatus.textContent = "✅ Voice Ready";
         voiceStatus.style.color = "#86efac";
       } else {
@@ -190,7 +166,7 @@
       const encodingCall = allCalls?.filter(c => c.service !== "MAGCOOP Loan")[0] || null;
       const loanCall = allCalls?.filter(c => c.service === "MAGCOOP Loan")[0] || null;
       
-      // ENCODING
+      // ENCODING — NOW SERVING
       if (encodingCall) {
         const name = (encodingCall.name || "Customer").toUpperCase();
         const counter = encodingCall.counter || 1;
@@ -214,7 +190,7 @@
         lastEncodingToken = null;
       }
       
-      // LOAN
+      // LOAN — NOW SERVING
       if (loanCall) {
         const name = (loanCall.name || "Customer").toUpperCase();
         const rawToken = loanCall.token;
@@ -235,7 +211,7 @@
         lastLoanToken = null;
       }
       
-      // NEXT IN QUEUE — Encoding
+      // NEXT IN QUEUE — ENCODING
       const encNextList = q?.filter(c => c.service !== "MAGCOOP Loan").slice(0, 5) || [];
       const encListEl = document.getElementById("encNextList");
       if (encNextList.length > 0) {
@@ -244,10 +220,10 @@
           return `<div class="next-item"><span class="font-bold">${tok}</span> — ${(c.name || "").toUpperCase()}</div>`;
         }).join("");
       } else {
-        encListEl.innerHTML = `<p class="text-slate-400 italic">No customers waiting</p>`;
+        encListEl.innerHTML = `<p>No customers waiting</p>`;
       }
       
-      // NEXT IN QUEUE — Loan
+      // NEXT IN QUEUE — LOAN
       const loanNextList = q?.filter(c => c.service === "MAGCOOP Loan").slice(0, 5) || [];
       const loanListEl = document.getElementById("loanNextList");
       if (loanNextList.length > 0) {
@@ -256,7 +232,7 @@
           return `<div class="next-item"><span class="font-bold">${tok}</span> — ${(c.name || "").toUpperCase()}</div>`;
         }).join("");
       } else {
-        loanListEl.innerHTML = `<p class="text-slate-400 italic">No customers waiting</p>`;
+        loanListEl.innerHTML = `<p>No customers waiting</p>`;
       }
     }
     
