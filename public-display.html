@@ -42,6 +42,7 @@
       <p class="text-slate-400 text-sm">Sound plays from your device speakers</p>
     </div>
   </div>
+
   <!-- HEADER -->
   <header class="py-3 px-6 flex justify-between items-center border-b border-slate-700/40 shrink-0">
     <h1 class="text-xl font-bold">
@@ -52,6 +53,7 @@
       <p class="text-xs mt-1" id="voiceStatus">Waiting for click...</p>
     </div>
   </header>
+
   <!-- MAIN 2×2 GRID -->
   <main class="flex-1 grid grid-cols-2 grid-rows-2 min-h-0">
     <!-- TOP LEFT: ENCODING -->
@@ -62,6 +64,7 @@
       <p class="text-slate-300 mt-4" id="encProceed">Waiting for next...</p>
       <p class="mt-5"><span class="counter-badge" id="encCounterBtn">Counter 1</span></p>
     </section>
+
     <!-- TOP RIGHT: LOAN -->
     <section class="flex flex-col items-center justify-center p-6 divider-h">
       <p class="text-purple-400 mb-4">NOW SERVING — LOAN</p>
@@ -70,6 +73,7 @@
       <p class="text-slate-300 mt-4" id="loanProceed">Waiting for next loan application...</p>
       <p class="mt-5"><span class="loan-badge">Loan Counter</span></p>
     </section>
+
     <!-- BOTTOM LEFT: NEXT IN QUEUE -->
     <section class="flex items-start justify-between p-6 divider-v">
       <div class="w-[48%]">
@@ -87,6 +91,7 @@
         </div>
       </div>
     </section>
+
     <!-- BOTTOM RIGHT: QR CODE -->
     <section class="flex flex-col items-center justify-center p-6">
       <h3 class="text-lg font-semibold text-slate-300 mb-4">📱 SCAN TO JOIN QUEUE</h3>
@@ -97,6 +102,7 @@
     </section>
   </main>
 
+  <audio id="audioPlayer" preload="auto">
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
@@ -104,44 +110,36 @@
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
     let audioUnlocked = false;
+    let useSpeech = false;
     let lastLoanToken = null;
     let lastEncodingToken = null;
     const clickHint = document.getElementById("clickHint");
     const voiceStatus = document.getElementById("voiceStatus");
 
-    // ✅ Use browser built-in speech — WORKS EVERYWHERE (file + GitHub Pages)
-    function speak(text) {
-      if (!audioUnlocked) return;
-      if (!window.speechSynthesis) return;
-      
-      try {
-        window.speechSynthesis.cancel();
-        const utt = new SpeechSynthesisUtterance(text);
-        utt.lang = "en-PH";
-        utt.rate = 0.85;
-        utt.volume = 1;
-        window.speechSynthesis.speak(utt);
-      } catch (err) {
-        console.log("Speech error:", err);
-      }
-    }
-
     function enableAudio() {
       if (audioUnlocked) return;
       audioUnlocked = true;
       clickHint.classList.add("hidden");
-      
-      if (window.speechSynthesis) {
-        voiceStatus.textContent = "✅ Voice Ready";
+      try {
+        if (window.speechSynthesis && window.speechSynthesis.getVoices().length > 0) {
+          useSpeech = true;
+          voiceStatus.textContent = "✅ Voice Ready";
+          voiceStatus.style.color = "#86efac";
+        } else {
+          useSpeech = false;
+          voiceStatus.textContent = "✅ Audio Ready";
+          voiceStatus.style.color = "#86efac";
+        }
+      } catch {
+        useSpeech = false;
+        voiceStatus.textContent = "✅ Audio Ready";
         voiceStatus.style.color = "#86efac";
-      } else {
-        voiceStatus.textContent = "⚠️ Speech not supported";
-        voiceStatus.style.color = "#fca5a5";
       }
-      
+      const silent = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhBAAEAgAAAAQAACBAAAgIAAAAAAAgIAAAAAAAACIgAICIA/8gAABAg/+P/6DwEBAP/+/w==");
+      silent.volume = 0;
+      silent.play().catch(()=>{});
       setTimeout(() => speak("System ready."), 300);
     }
-
     clickHint.addEventListener("click", enableAudio);
     clickHint.addEventListener("touchstart", enableAudio);
 
@@ -159,13 +157,35 @@
       return type === 'encoding' ? `E${String(num).padStart(3, '0')}` : `L${String(num).padStart(3, '0')}`;
     }
 
+    function speak(text) {
+      if (!audioUnlocked) return;
+      if (useSpeech && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+          const utt = new SpeechSynthesisUtterance(text);
+          utt.lang = "en-PH";
+          utt.rate = 0.85;
+          utt.volume = 1;
+          window.speechSynthesis.speak(utt);
+          return;
+        } catch { useSpeech = false; }
+      }
+      try {
+        const audioPlayer = document.getElementById("audioPlayer");
+        audioPlayer.pause();
+        audioPlayer.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en-PH&client=tw-ob`;
+        audioPlayer.volume = 1;
+        audioPlayer.play();
+      } catch (e) { console.log("Audio failed:", e); }
+    }
+
     async function loadData() {
       const { data: q } = await sb.from("queue").select("*").order("position", { ascending: true }).limit(10);
       const { data: allCalls } = await sb.from("calls").select("*").order("id", { ascending: false });
       
       const encodingCall = allCalls?.filter(c => c.service !== "MAGCOOP Loan")[0] || null;
       const loanCall = allCalls?.filter(c => c.service === "MAGCOOP Loan")[0] || null;
-      
+
       // ENCODING — NOW SERVING
       if (encodingCall) {
         const name = (encodingCall.name || "Customer").toUpperCase();
@@ -176,7 +196,6 @@
         document.getElementById("encName").textContent = name;
         document.getElementById("encProceed").textContent = `Proceed to Counter ${counter}`;
         document.getElementById("encCounterBtn").textContent = `Counter ${counter}`;
-        
         if (lastEncodingToken !== rawToken) {
           lastEncodingToken = rawToken;
           const spokenToken = formatTokenForSpeech(displayToken);
@@ -189,7 +208,7 @@
         document.getElementById("encCounterBtn").textContent = "Counter 1";
         lastEncodingToken = null;
       }
-      
+
       // LOAN — NOW SERVING
       if (loanCall) {
         const name = (loanCall.name || "Customer").toUpperCase();
@@ -198,7 +217,6 @@
         document.getElementById("loanToken").textContent = displayToken;
         document.getElementById("loanName").textContent = name;
         document.getElementById("loanProceed").textContent = "Please proceed to the Loan Counter";
-        
         if (lastLoanToken !== rawToken) {
           lastLoanToken = rawToken;
           const spokenToken = formatTokenForSpeech(displayToken);
@@ -210,8 +228,8 @@
         document.getElementById("loanProceed").textContent = "Waiting for next loan application...";
         lastLoanToken = null;
       }
-      
-      // NEXT IN QUEUE — ENCODING
+
+      // NEXT IN QUEUE — ENCODING: SHOW UP TO 5 NAMES
       const encNextList = q?.filter(c => c.service !== "MAGCOOP Loan").slice(0, 5) || [];
       const encListEl = document.getElementById("encNextList");
       if (encNextList.length > 0) {
@@ -222,8 +240,8 @@
       } else {
         encListEl.innerHTML = `<p>No customers waiting</p>`;
       }
-      
-      // NEXT IN QUEUE — LOAN
+
+      // ✅ FIXED — LOAN NOW SHOWS UP TO 5 NAMES
       const loanNextList = q?.filter(c => c.service === "MAGCOOP Loan").slice(0, 5) || [];
       const loanListEl = document.getElementById("loanNextList");
       if (loanNextList.length > 0) {
@@ -235,14 +253,13 @@
         loanListEl.innerHTML = `<p>No customers waiting</p>`;
       }
     }
-    
+
     sb.channel("display")
       .on("postgres_changes", { event: "*", schema: "public", table: "calls" }, loadData)
       .on("postgres_changes", { event: "*", schema: "public", table: "queue" }, loadData)
       .subscribe();
-    
+
     setInterval(loadData, 1000);
-    
     (async () => {
       try {
         await sb.from("queue").select("*").limit(1);
