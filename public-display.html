@@ -38,8 +38,8 @@
     <div class="text-center p-6">
       <div class="text-5xl mb-4">🔊</div>
       <h2 class="text-xl font-bold mb-2">👆 CLICK HERE ONCE FIRST</h2>
-      <p class="text-amber-400 font-semibold mb-1">Before Casting to TV</p>
-      <p class="text-slate-400 text-sm">Sound plays from your device speakers</p>
+      <p class="text-amber-400 font-semibold mb-1">Sound stays on your computer speakers</p>
+      <p class="text-slate-400 text-sm">Then press Win+P → Duplicate to TV</p>
     </div>
   </div>
   <!-- HEADER -->
@@ -109,7 +109,7 @@
     const clickHint = document.getElementById("clickHint");
     const voiceStatus = document.getElementById("voiceStatus");
 
-    // ✅ ONLY built-in speech — NO blocked Google TTS link!
+    // ✅ Speech stays on YOUR DEVICE — does NOT follow cast
     function speak(text) {
       if (!audioUnlocked) return;
       if (!window.speechSynthesis) return;
@@ -120,7 +120,10 @@
         utt.lang = "en-PH";
         utt.rate = 0.85;
         utt.volume = 1;
-        window.speechSynthesis.speak(utt);
+        // Force voice to play locally on this device
+        if (window.speechSynthesis.speak) {
+          window.speechSynthesis.speak(utt);
+        }
       } catch (err) {
         console.log("Speech error:", err);
       }
@@ -132,8 +135,12 @@
       clickHint.classList.add("hidden");
       
       if (window.speechSynthesis) {
-        voiceStatus.textContent = "✅ Voice Ready";
+        voiceStatus.textContent = "✅ Voice Ready — Sound from Computer";
         voiceStatus.style.color = "#86efac";
+        // Pre-load voices
+        if (window.speechSynthesis.onvoiceschanged !== undefined) {
+          window.speechSynthesis.onvoiceschanged = () => {};
+        }
       } else {
         voiceStatus.textContent = "⚠️ Speech not supported";
         voiceStatus.style.color = "#fca5a5";
