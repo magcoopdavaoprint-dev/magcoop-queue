@@ -38,8 +38,8 @@
     <div class="text-center p-6">
       <div class="text-5xl mb-4">🔊</div>
       <h2 class="text-xl font-bold mb-2">👆 CLICK HERE ONCE FIRST</h2>
-      <p class="text-amber-400 font-semibold mb-1">Sound stays on your computer speakers</p>
-      <p class="text-slate-400 text-sm">Use Win+P → Duplicate — DO NOT use Cast Tab</p>
+      <p class="text-amber-400 font-semibold mb-1">Before Casting to TV</p>
+      <p class="text-slate-400 text-sm">Sound plays from your device speakers</p>
     </div>
   </div>
   <!-- HEADER -->
@@ -96,7 +96,7 @@
       <p class="text-xs text-slate-400 text-center">Point camera at QR → Enter name → Submit</p>
     </section>
   </main>
-
+  <audio id="audioPlayer" preload="auto">
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
@@ -104,61 +104,130 @@
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
     let audioUnlocked = false;
+    let useSpeechSynthesis = false;
     let lastLoanToken = null;
     let lastEncodingToken = null;
+    
+    // Speech queue — prevents cutting off when slow
+    let speechQueue = [];
+    let isSpeaking = false;
+    
     const clickHint = document.getElementById("clickHint");
     const voiceStatus = document.getElementById("voiceStatus");
-
-    // ✅ ONLY built-in speech — NO Google TTS link = works everywhere!
-    function speak(text) {
-      if (!audioUnlocked) return;
-      if (!window.speechSynthesis) return;
-      
-      try {
-        window.speechSynthesis.cancel();
-        const utt = new SpeechSynthesisUtterance(text);
-        utt.lang = "en-PH";
-        utt.rate = 0.85;
-        utt.volume = 1;
-        window.speechSynthesis.speak(utt);
-      } catch (err) {
-        console.log("Speech error:", err);
-      }
-    }
-
+    const audioPlayer = document.getElementById("audioPlayer");
+    
     function enableAudio() {
       if (audioUnlocked) return;
       audioUnlocked = true;
       clickHint.classList.add("hidden");
       
-      if (window.speechSynthesis) {
-        voiceStatus.textContent = "✅ Voice Ready — Sound from Computer";
+      try {
+        if (window.speechSynthesis && window.speechSynthesis.getVoices().length > 0) {
+          useSpeechSynthesis = true;
+          voiceStatus.textContent = "✅ Voice Ready";
+          voiceStatus.style.color = "#86efac";
+        } else {
+          useSpeechSynthesis = false;
+          voiceStatus.textContent = "✅ Audio Ready";
+          voiceStatus.style.color = "#86efac";
+        }
+      } catch {
+        useSpeechSynthesis = false;
+        voiceStatus.textContent = "✅ Audio Ready";
         voiceStatus.style.color = "#86efac";
-      } else {
-        voiceStatus.textContent = "⚠️ Speech not supported";
-        voiceStatus.style.color = "#fca5a5";
       }
       
-      setTimeout(() => speak("System ready."), 300);
+      // Unlock audio
+      const silent = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhBAAEAgAAAAQAACBAAAgIAAAAAAAgIAAAAAAAACIgAICIA/8gAABAg/+P/6DwEBAP/+/w==");
+      silent.volume = 0;
+      silent.play().catch(()=>{});
+      
+      setTimeout(() => enqueueSpeak("System ready."), 300);
     }
-
+    
     clickHint.addEventListener("click", enableAudio);
     clickHint.addEventListener("touchstart", enableAudio);
-
+    
     function formatTokenForSpeech(token) {
       const letter = token.charAt(0);
       const numbers = token.slice(1);
       const spokenNumbers = numbers.split('').map(d => d === '0' ? 'zero' : d).join(' ');
       return `${letter} ${spokenNumbers}`;
     }
-
+    
     function formatDisplayToken(token, type) {
       const digits = String(token).replace(/[^0-9]/g, '');
       let num = parseInt(digits, 10);
       if (isNaN(num) || num <= 0) num = 1;
       return type === 'encoding' ? `E${String(num).padStart(3, '0')}` : `L${String(num).padStart(3, '0')}`;
     }
-
+    
+    // Queue system — speak one at a time, never cut off
+    function enqueueSpeak(text) {
+      speechQueue.push(text);
+      processSpeechQueue();
+    }
+    
+    function processSpeechQueue() {
+      if (isSpeaking || speechQueue.length === 0 || !audioUnlocked) return;
+      
+      isSpeaking = true;
+      const text = speechQueue.shift();
+      
+      if (useSpeechSynthesis && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+          const utt = new SpeechSynthesisUtterance(text);
+          utt.lang = "en-PH";
+          utt.rate = 0.85;
+          utt.volume = 1;
+          utt.onend = utt.onerror = () => {
+            isSpeaking = false;
+            setTimeout(processSpeechQueue, 200);
+          };
+          window.speechSynthesis.speak(utt);
+          return;
+        } catch {
+          useSpeechSynthesis = false;
+        }
+      }
+      
+      // Fallback: Google TTS with longer timeout
+      try {
+        audioPlayer.pause();
+        audioPlayer.currentTime = 0;
+        const encoded = encodeURIComponent(text);
+        audioPlayer.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=en-PH&client=tw-ob`;
+        audioPlayer.volume = 1;
+        
+        const playPromise = audioPlayer.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            console.log("Audio play failed:", err);
+            isSpeaking = false;
+            setTimeout(processSpeechQueue, 300);
+          });
+        }
+        
+        audioPlayer.onended = () => {
+          isSpeaking = false;
+          setTimeout(processSpeechQueue, 200);
+        };
+        
+        // Timeout fallback — if loading takes too long
+        setTimeout(() => {
+          if (isSpeaking) {
+            isSpeaking = false;
+            processSpeechQueue();
+          }
+        }, 12000); // 12-second timeout per message
+      } catch (e) {
+        console.log("Audio failed:", e);
+        isSpeaking = false;
+        setTimeout(processSpeechQueue, 300);
+      }
+    }
+    
     async function loadData() {
       const { data: q } = await sb.from("queue").select("*").order("position", { ascending: true }).limit(10);
       const { data: allCalls } = await sb.from("calls").select("*").order("id", { ascending: false });
@@ -180,7 +249,7 @@
         if (lastEncodingToken !== rawToken) {
           lastEncodingToken = rawToken;
           const spokenToken = formatTokenForSpeech(displayToken);
-          speak(`${spokenToken}. Please proceed to Counter ${counter}. Thank you.`);
+          enqueueSpeak(`${spokenToken}. Please proceed to Counter ${counter}. Thank you.`);
         }
       } else {
         document.getElementById("encToken").textContent = "—";
@@ -197,12 +266,12 @@
         const displayToken = formatDisplayToken(rawToken, 'loan');
         document.getElementById("loanToken").textContent = displayToken;
         document.getElementById("loanName").textContent = name;
-        document.getElementById("loanProceed").textContent = "Please proceed to the Loan Counter";
+        document.getElementById("loanProceed").textContent = "Please proceed to the Loan Counter.";
         
         if (lastLoanToken !== rawToken) {
           lastLoanToken = rawToken;
           const spokenToken = formatTokenForSpeech(displayToken);
-          speak(`${spokenToken}. Please proceed to the Loan Counter. Thank you.`);
+          enqueueSpeak(`${spokenToken}. Please proceed to the Loan Counter. Thank you.`);
         }
       } else {
         document.getElementById("loanToken").textContent = "—";
@@ -214,26 +283,22 @@
       // NEXT IN QUEUE — ENCODING
       const encNextList = q?.filter(c => c.service !== "MAGCOOP Loan").slice(0, 5) || [];
       const encListEl = document.getElementById("encNextList");
-      if (encNextList.length > 0) {
-        encListEl.innerHTML = encNextList.map(c => {
-          const tok = formatDisplayToken(c.token, 'encoding');
-          return `<div class="next-item"><span class="font-bold">${tok}</span> — ${(c.name || "").toUpperCase()}</div>`;
-        }).join("");
-      } else {
-        encListEl.innerHTML = `<p>No customers waiting</p>`;
-      }
+      encListEl.innerHTML = encNextList.length > 0
+        ? encNextList.map(c => {
+            const tok = formatDisplayToken(c.token, 'encoding');
+            return `<div class="next-item"><span class="font-bold">${tok}</span> — ${(c.name || "").toUpperCase()}</div>`;
+          }).join("")
+        : `<p>No customers waiting</p>`;
       
       // NEXT IN QUEUE — LOAN
       const loanNextList = q?.filter(c => c.service === "MAGCOOP Loan").slice(0, 5) || [];
       const loanListEl = document.getElementById("loanNextList");
-      if (loanNextList.length > 0) {
-        loanListEl.innerHTML = loanNextList.map(c => {
-          const tok = formatDisplayToken(c.token, 'loan');
-          return `<div class="next-item"><span class="font-bold">${tok}</span> — ${(c.name || "").toUpperCase()}</div>`;
-        }).join("");
-      } else {
-        loanListEl.innerHTML = `<p>No customers waiting</p>`;
-      }
+      loanListEl.innerHTML = loanNextList.length > 0
+        ? loanNextList.map(c => {
+            const tok = formatDisplayToken(c.token, 'loan');
+            return `<div class="next-item"><span class="font-bold">${tok}</span> — ${(c.name || "").toUpperCase()}</div>`;
+          }).join("")
+        : `<p>No customers waiting</p>`;
     }
     
     sb.channel("display")
