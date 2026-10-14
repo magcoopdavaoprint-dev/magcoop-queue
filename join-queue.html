@@ -117,8 +117,7 @@
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
     
-    const { createClient } = supabase;
-    const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
     const nicknameInput = document.getElementById('nicknameInput');
     const submitBtn = document.getElementById('submitBtn');
@@ -192,7 +191,7 @@
       nicknameInput.focus();
     });
     
-    // ✅ FULLY SEPARATE COUNTERS: Loan = L001+, Encoding = E001+
+    // ✅ Fully separate token sequences: Loan = L001+, Encoding = E001+
     async function getNextToken() {
       const [{ data: queueData }, { data: callsData }] = await Promise.all([
         sb.from('queue').select('token, service'),
@@ -201,27 +200,28 @@
       
       const allRecords = [...(queueData || []), ...(callsData || [])];
       
-      // Separate counters
       let maxLoan = 0;
       let maxEncoding = 0;
       
       allRecords.forEach(row => {
         let num;
-        if (row.token?.startsWith('E') || row.token?.startsWith('L')) {
+        if (row.token?.startsWith('E')) {
           num = parseInt(row.token.slice(1), 10);
-        } else {
-          num = parseInt(row.token?.replace(/^.*-/, ''), 10);
-        }
-        if (isNaN(num) || num <= 0) return;
-        
-        if (row.service === 'MAGCOOP Loan') {
-          if (num > maxLoan) maxLoan = num;
-        } else {
-          if (num > maxEncoding) maxEncoding = num;
+          if (!isNaN(num) && num > maxEncoding) maxEncoding = num;
+        } else if (row.token?.startsWith('L')) {
+          num = parseInt(row.token.slice(1), 10);
+          if (!isNaN(num) && num > maxLoan) maxLoan = num;
+        } else if (row.token) {
+          num = parseInt(row.token.replace(/^.*-/, ''), 10);
+          if (isNaN(num) || num <= 0) return;
+          if (row.service === 'MAGCOOP Loan') {
+            if (num > maxLoan) maxLoan = num;
+          } else {
+            if (num > maxEncoding) maxEncoding = num;
+          }
         }
       });
       
-      // Completely independent
       if (selectedService === 'MAGCOOP Loan') {
         return `L${String(maxLoan + 1).padStart(3, '0')}`;
       } else {
@@ -255,7 +255,7 @@
       
       submitBtn.disabled = true;
       submitBtn.textContent = 'Submitting...';
-      statusText.textContent = 'Saving...';
+      statusText.textContent = 'Saving to queue...';
       statusText.style.color = 'inherit';
       
       try {
