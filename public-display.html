@@ -33,7 +33,6 @@
   </style>
 </head>
 <body class="h-screen flex flex-col">
-  <!-- 🔊 CLICK ONCE — ENABLE SOUND -->
   <div id="clickHint" class="click-hint">
     <div class="text-center p-6">
       <div class="text-5xl mb-4">🔊</div>
@@ -42,7 +41,6 @@
       <p class="text-slate-400 text-sm">Sound plays from your device speakers</p>
     </div>
   </div>
-  <!-- HEADER -->
   <header class="py-3 px-6 flex justify-between items-center border-b border-slate-700/40 shrink-0">
     <h1 class="text-xl font-bold">
       <span class="text-blue-500">MAGCOOP</span> <span class="text-amber-400">DAVAO</span> — QUEUE DISPLAY
@@ -52,9 +50,7 @@
       <p class="text-xs mt-1" id="voiceStatus">Waiting for click...</p>
     </div>
   </header>
-  <!-- MAIN 2×2 GRID -->
   <main class="flex-1 grid grid-cols-2 grid-rows-2 min-h-0">
-    <!-- TOP LEFT: ENCODING -->
     <section class="flex flex-col items-center justify-center p-6 divider-h divider-v">
       <p class="text-slate-400 mb-4">NOW SERVING — ENCODING</p>
       <p class="token-encoding" id="encToken">—</p>
@@ -62,15 +58,13 @@
       <p class="text-slate-300 mt-4" id="encProceed">Waiting for next...</p>
       <p class="mt-5"><span class="counter-badge" id="encCounterBtn">Counter 1</span></p>
     </section>
-    <!-- TOP RIGHT: LOAN -->
     <section class="flex flex-col items-center justify-center p-6 divider-h">
       <p class="text-purple-400 mb-4">NOW SERVING — LOAN</p>
       <p class="token-loan" id="loanToken">—</p>
       <p class="name-big mt-3 text-purple-300" id="loanName">—</p>
       <p class="text-slate-300 mt-4" id="loanProceed">Waiting for next loan application...</p>
-      <p class="mt-5"><span class="loan-badge">Loan Counter</span></p>
+      <p class="mt-5"><span class="loan-badge" id="loanCounterBtn">Loan Counter</span></p>
     </section>
-    <!-- BOTTOM LEFT: NEXT IN QUEUE -->
     <section class="flex items-start justify-between p-6 divider-v">
       <div class="w-[48%]">
         <p class="text-lg font-semibold text-slate-300">NEXT IN QUEUE</p>
@@ -87,7 +81,6 @@
         </div>
       </div>
     </section>
-    <!-- BOTTOM RIGHT: QR CODE -->
     <section class="flex flex-col items-center justify-center p-6">
       <h3 class="text-lg font-semibold text-slate-300 mb-4">📱 SCAN TO JOIN QUEUE</h3>
       <div class="qr-box mb-2">
@@ -105,16 +98,24 @@
     
     let audioUnlocked = false;
     let useSpeechSynthesis = false;
-    let lastLoanToken = null;
-    let lastEncodingToken = null;
+    // ✅ Track by RECORD ID not just token — fixes Re-Call issue
+    let lastEncRecordId = null;
+    let lastLoanRecordId = null;
     
-    // Speech queue — prevents cutting off when slow
     let speechQueue = [];
     let isSpeaking = false;
     
     const clickHint = document.getElementById("clickHint");
     const voiceStatus = document.getElementById("voiceStatus");
     const audioPlayer = document.getElementById("audioPlayer");
+    
+    // ✅ 0 = Loan Counter
+    function getCounterLabel(counter) {
+      if (counter === 0 || counter === "0") {
+        return "Loan Counter";
+      }
+      return `Counter ${counter}`;
+    }
     
     function enableAudio() {
       if (audioUnlocked) return;
@@ -137,7 +138,6 @@
         voiceStatus.style.color = "#86efac";
       }
       
-      // Unlock audio
       const silent = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhBAAEAgAAAAQAACBAAAgIAAAAAAAgIAAAAAAAACIgAICIA/8gAABAg/+P/6DwEBAP/+/w==");
       silent.volume = 0;
       silent.play().catch(()=>{});
@@ -162,7 +162,6 @@
       return type === 'encoding' ? `E${String(num).padStart(3, '0')}` : `L${String(num).padStart(3, '0')}`;
     }
     
-    // Queue system — speak one at a time, never cut off
     function enqueueSpeak(text) {
       speechQueue.push(text);
       processSpeechQueue();
@@ -192,7 +191,6 @@
         }
       }
       
-      // Fallback: Google TTS with longer timeout
       try {
         audioPlayer.pause();
         audioPlayer.currentTime = 0;
@@ -214,13 +212,12 @@
           setTimeout(processSpeechQueue, 200);
         };
         
-        // Timeout fallback — if loading takes too long
         setTimeout(() => {
           if (isSpeaking) {
             isSpeaking = false;
             processSpeechQueue();
           }
-        }, 12000); // 12-second timeout per message
+        }, 12000);
       } catch (e) {
         console.log("Audio failed:", e);
         isSpeaking = false;
@@ -235,52 +232,63 @@
       const encodingCall = allCalls?.filter(c => c.service !== "MAGCOOP Loan")[0] || null;
       const loanCall = allCalls?.filter(c => c.service === "MAGCOOP Loan")[0] || null;
       
-      // ENCODING — NOW SERVING
+      // ENCODING
       if (encodingCall) {
         const name = (encodingCall.name || "Customer").toUpperCase();
         const counter = encodingCall.counter || 1;
+        const counterLabel = getCounterLabel(counter);
         const rawToken = encodingCall.token;
+        const recordId = encodingCall.id;
         const displayToken = formatDisplayToken(rawToken, 'encoding');
+        
         document.getElementById("encToken").textContent = displayToken;
         document.getElementById("encName").textContent = name;
-        document.getElementById("encProceed").textContent = `Proceed to Counter ${counter}`;
-        document.getElementById("encCounterBtn").textContent = `Counter ${counter}`;
+        document.getElementById("encProceed").textContent = `Proceed to ${counterLabel}`;
+        document.getElementById("encCounterBtn").textContent = counterLabel;
         
-        if (lastEncodingToken !== rawToken) {
-          lastEncodingToken = rawToken;
+        // ✅ Announce when RECORD ID changes — even if token is same!
+        if (lastEncRecordId !== recordId) {
+          lastEncRecordId = recordId;
           const spokenToken = formatTokenForSpeech(displayToken);
-          enqueueSpeak(`${spokenToken}. Please proceed to Counter ${counter}. Thank you.`);
+          enqueueSpeak(`${spokenToken}. Please proceed to ${counterLabel}. Thank you.`);
         }
       } else {
         document.getElementById("encToken").textContent = "—";
         document.getElementById("encName").textContent = "—";
         document.getElementById("encProceed").textContent = "Waiting for next customer...";
         document.getElementById("encCounterBtn").textContent = "Counter 1";
-        lastEncodingToken = null;
+        lastEncRecordId = null;
       }
       
-      // LOAN — NOW SERVING
+      // ✅ LOAN — Same logic
       if (loanCall) {
         const name = (loanCall.name || "Customer").toUpperCase();
+        const counter = loanCall.counter;
+        const counterLabel = getCounterLabel(counter);
         const rawToken = loanCall.token;
+        const recordId = loanCall.id;
         const displayToken = formatDisplayToken(rawToken, 'loan');
+        
         document.getElementById("loanToken").textContent = displayToken;
         document.getElementById("loanName").textContent = name;
-        document.getElementById("loanProceed").textContent = "Please proceed to the Loan Counter.";
+        document.getElementById("loanProceed").textContent = `Proceed to ${counterLabel}`;
+        document.getElementById("loanCounterBtn").textContent = counterLabel;
         
-        if (lastLoanToken !== rawToken) {
-          lastLoanToken = rawToken;
+        // ✅ Announce on NEW RECORD — Re-Call works every time!
+        if (lastLoanRecordId !== recordId) {
+          lastLoanRecordId = recordId;
           const spokenToken = formatTokenForSpeech(displayToken);
-          enqueueSpeak(`${spokenToken}. Please proceed to the Loan Counter. Thank you.`);
+          enqueueSpeak(`${spokenToken}. Please proceed to ${counterLabel}. Thank you.`);
         }
       } else {
         document.getElementById("loanToken").textContent = "—";
         document.getElementById("loanName").textContent = "—";
         document.getElementById("loanProceed").textContent = "Waiting for next loan application...";
-        lastLoanToken = null;
+        document.getElementById("loanCounterBtn").textContent = "Loan Counter";
+        lastLoanRecordId = null;
       }
       
-      // NEXT IN QUEUE — ENCODING
+      // Next lists
       const encNextList = q?.filter(c => c.service !== "MAGCOOP Loan").slice(0, 5) || [];
       const encListEl = document.getElementById("encNextList");
       encListEl.innerHTML = encNextList.length > 0
@@ -290,7 +298,6 @@
           }).join("")
         : `<p>No customers waiting</p>`;
       
-      // NEXT IN QUEUE — LOAN
       const loanNextList = q?.filter(c => c.service === "MAGCOOP Loan").slice(0, 5) || [];
       const loanListEl = document.getElementById("loanNextList");
       loanListEl.innerHTML = loanNextList.length > 0
