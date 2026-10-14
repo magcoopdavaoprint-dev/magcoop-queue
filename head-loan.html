@@ -10,7 +10,7 @@
     tailwind.config = {
       theme: {
         extend: {
-          colors: { magcoop: { loan: '#8b5cf6', loandark: '#7c3aed' } }
+          colors: { magcoop: { loan: '#8b5cf6', loandark: '#7c3aed', accent: '#f59e0b' } }
         }
       }
     }
@@ -65,8 +65,12 @@
         <button id="addLoanBtn" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-3 rounded-xl mb-4">
           ➕ Add Loan Applicant
         </button>
-        <button id="callNextBtn" class="w-full bg-magcoop-loan hover:bg-magcoop-loandark text-white text-lg font-bold py-4 rounded-xl transition mb-4">
+        <button id="callNextBtn" class="w-full bg-magcoop-loan hover:bg-magcoop-loandark text-white text-lg font-bold py-4 rounded-xl transition mb-3">
           📢 CALL NEXT LOAN
+        </button>
+        <!-- ✅ RE-CALL CURRENT BUTTON -->
+        <button id="callAgainBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl transition mb-4" disabled>
+          🔊 RE-CALL CURRENT
         </button>
         <button id="clearDisplayBtn" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium py-3 rounded-xl transition mb-4">
           🔄 CLEAR CURRENT DISPLAY
@@ -92,9 +96,12 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
     
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    const LOAN_COUNTER = 0; // Loan Counter = 0
+    
     let currentServing = null;
     let loanQueue = [];
-    let forceStartFromOne = false;
+    let tokenOffset = 0;
     let latestKnownId = 0;
     
     const currentTokenEl = document.getElementById('currentToken');
@@ -102,6 +109,7 @@
     const loanQueueBody = document.getElementById('loanQueueBody');
     const waitingCountEl = document.getElementById('waitingCount');
     const callNextBtn = document.getElementById('callNextBtn');
+    const callAgainBtn = document.getElementById('callAgainBtn'); // ✅ Re-call button
     const clearDisplayBtn = document.getElementById('clearDisplayBtn');
     const resetLoanBtn = document.getElementById('resetLoanBtn');
     const servingCard = document.getElementById('servingCard');
@@ -135,59 +143,34 @@
       addLoanModal.classList.remove('flex');
     });
     
-    async function getNextLoanToken() {
-      const [{ data: queueData }, { data: callsData }] = await Promise.all([
-        sb.from("queue").select("token").eq("service", "MAGCOOP Loan"),
-        sb.from("calls").select("token").eq("service", "MAGCOOP Loan")
-      ]);
-      
-      const allLoanRecords = [...(queueData || []), ...(callsData || [])];
-      
-      let maxLoanNum = 0;
-      allLoanRecords.forEach(row => {
-        let num;
-        if (row.token?.startsWith('L')) {
-          num = parseInt(row.token.slice(1), 10);
-        } else {
-          num = parseInt(row.token?.replace(/^.*-/, ''), 10);
-        }
-        if (!isNaN(num) && num > maxLoanNum) maxLoanNum = num;
-      });
-      
-      const nextNum = forceStartFromOne ? 1 : (maxLoanNum + 1);
-      forceStartFromOne = false;
-      
-      return `L${String(nextNum).padStart(3, '0')}`;
-    }
-    
     saveLoanBtn.addEventListener('click', async () => {
       const name = loanNameInput.value.trim();
       if (!name) return alert('Enter name');
       
-      const token = await getNextLoanToken();
+      const [{ data: q }, { data: c }] = await Promise.all([
+        sb.from("queue").select("token").eq("service", "MAGCOOP Loan"),
+        sb.from("calls").select("token").eq("service", "MAGCOOP Loan")
+      ]);
+      let max = 0;
+      [...(q||[]), ...(c||[])].forEach(r => {
+        const num = parseInt(r.token.replace(/[^0-9]/g, ''), 10);
+        if (!isNaN(num) && num > max) max = num;
+      });
+      const nextNum = tokenOffset > 0 ? tokenOffset : (max + 1);
+      if (tokenOffset > 0) tokenOffset = 0;
+      const token = `L${String(nextNum).padStart(3, '0')}`;
       
       const { count } = await sb.from("queue").select("*", { count: "exact", head: true }).eq("service", "MAGCOOP Loan");
-      
       await sb.from("queue").insert({
-        token,
-        name,
-        dept: "Loans",
-        service: "MAGCOOP Loan",
-        position: (count || 0) + 1
+        token, name, dept: "Loans", service: "MAGCOOP Loan", position: (count || 0) + 1
       });
       
       addLoanModal.classList.add('hidden');
       addLoanModal.classList.remove('flex');
     });
     
-    window.addEventListener('DOMContentLoaded', loadLoanQueue);
-    
     async function loadLoanQueue() {
-      const { data } = await sb.from('queue')
-        .select('*')
-        .eq('service', 'MAGCOOP Loan')
-        .order('position', { ascending: true });
-      
+      const { data } = await sb.from('queue').select('*').eq('service', 'MAGCOOP Loan').order('position', { ascending: true });
       loanQueue = data || [];
       waitingCountEl.textContent = loanQueue.length;
       
@@ -227,6 +210,7 @@
       });
     }
     
+    // ✅ CALL NEXT
     callNextBtn.addEventListener('click', async () => {
       if (loanQueue.length === 0) { alert('No loan customers in queue!'); return; }
       
@@ -240,13 +224,13 @@
       await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
       
       setTimeout(async () => {
-        await sb.from('calls').insert({
+        const { data: newCall } = await sb.from('calls').insert({
           token: next.token,
           name: next.name,
           service: 'MAGCOOP Loan',
-          counter: 2,
+          counter: LOAN_COUNTER,
           status: 'serving'
-        });
+        }).select();
       }, 100);
       
       await sb.from('queue').delete().eq('id', next.id);
@@ -254,8 +238,45 @@
       currentServing = next;
       currentTokenEl.textContent = next.token;
       currentNameEl.textContent = next.name.toUpperCase();
+      callAgainBtn.disabled = false; // ✅ Enable Re-call
       servingCard.classList.add('calling');
       setTimeout(() => servingCard.classList.remove('calling'), 3000);
+    });
+    
+    // ✅ RE-CALL CURRENT — Same as Agent Portal
+    callAgainBtn.addEventListener('click', async () => {
+      if (!currentServing) return;
+      
+      try {
+        // Save current values first
+        const savedToken = currentServing.token;
+        const savedName = currentServing.name;
+        
+        // Mark old as finished
+        if (currentServing.id) {
+          await sb.from('calls').update({ status: 'finished' }).eq('id', currentServing.id);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        // Insert fresh call record to trigger announcement
+        const { data: newCall } = await sb.from('calls').insert({
+          token: savedToken,
+          name: savedName,
+          service: 'MAGCOOP Loan',
+          counter: LOAN_COUNTER,
+          status: 'serving'
+        }).select();
+        
+        // Update display
+        currentTokenEl.textContent = savedToken;
+        currentNameEl.textContent = savedName.toUpperCase();
+        servingCard.classList.add('calling');
+        setTimeout(() => servingCard.classList.remove('calling'), 3000);
+      } catch (err) {
+        console.error('Re-call error:', err);
+        alert('Re-call failed: ' + err.message);
+      }
     });
     
     clearDisplayBtn.addEventListener('click', async () => {
@@ -264,32 +285,23 @@
       currentServing = null;
       currentTokenEl.textContent = '—';
       currentNameEl.textContent = 'Waiting for next loan...';
+      callAgainBtn.disabled = true; // ✅ Disable Re-call
       alert('✅ Display Cleared');
     });
     
     resetLoanBtn.addEventListener('click', async () => {
       if (!confirm('⚠️ RESET ALL LOAN DATA?\n\nClear queue + clear display\nNext = L001')) return;
-      
-      await Promise.all([
-        sb.from('queue').delete().eq('service', 'MAGCOOP Loan'),
-        sb.from('calls').delete().eq('service', 'MAGCOOP Loan')
-      ]);
-      
-      // ✅ INSTANT LOCAL UPDATE — no refresh needed
-      loanQueue = [];
-      waitingCountEl.textContent = '0';
-      renderLoanQueue();
-      callNextBtn.disabled = true;
-      
+      await sb.from('queue').delete().eq('service', 'MAGCOOP Loan');
+      await sb.from('calls').delete().eq('service', 'MAGCOOP Loan');
       currentServing = null;
       currentTokenEl.textContent = '—';
       currentNameEl.textContent = 'Waiting for next loan...';
-      
-      forceStartFromOne = true;
+      callAgainBtn.disabled = true; // ✅ Disable Re-call
+      tokenOffset = 1;
       alert('✅ Reset Complete — Next will be L001');
     });
     
-    // ✅ LIVE REAL-TIME — catches ALL changes including reset/clear
+    // ✅ LIVE UPDATE — Queue changes
     sb.channel('loan-queue-live')
       .on('postgres_changes', { 
         event: '*', 
@@ -300,18 +312,45 @@
         loadLoanQueue();
       })
       .subscribe();
-      
-    // ✅ Also listen to calls table changes for full sync
+    
+    // ✅ LIVE UPDATE — Call changes from ANYWHERE
     sb.channel('loan-calls-live')
       .on('postgres_changes', {
-        event: '*',
+        event: 'INSERT',
+        schema: 'public',
+        table: 'calls',
+        filter: 'service=eq.MAGCOOP Loan'
+      }, async (payload) => {
+        await loadLoanQueue();
+        const newCall = payload.new;
+        currentServing = newCall;
+        currentTokenEl.textContent = newCall.token;
+        currentNameEl.textContent = newCall.name.toUpperCase();
+        callAgainBtn.disabled = false; // ✅ Enable when someone is called
+        servingCard.classList.add('calling');
+        setTimeout(() => servingCard.classList.remove('calling'), 3000);
+      })
+      .subscribe();
+    
+    // ✅ Also watch for DELETE on calls — clear display when cleared elsewhere
+    sb.channel('loan-calls-clear')
+      .on('postgres_changes', {
+        event: 'DELETE',
         schema: 'public',
         table: 'calls',
         filter: 'service=eq.MAGCOOP Loan'
       }, () => {
-        // Optional: sync serving display if needed
+        const hasActive = document.querySelector('[id^="calling"]');
+        if (!hasActive) {
+          currentServing = null;
+          currentTokenEl.textContent = '—';
+          currentNameEl.textContent = 'Waiting for next loan...';
+          callAgainBtn.disabled = true;
+        }
       })
       .subscribe();
+    
+    loadLoanQueue();
   </script>
 </body>
 </html>
