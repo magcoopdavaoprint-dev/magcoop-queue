@@ -254,14 +254,13 @@
     const btnCancel = document.getElementById('btnCancel');
     const btnSave = document.getElementById('btnSave');
     
-    // ✅ Counter selection — FIXED
+    // ✅ Counter selection
     btnCounter1.addEventListener('click', () => {
       selectedCounter = 1;
       btnCounter1.classList.add('active', 'border-blue-600', 'bg-white');
       btnCounter1.classList.remove('bg-slate-50', 'border-slate-200');
       btnCounter2.classList.remove('active', 'border-blue-600');
       btnCounter2.classList.add('bg-slate-50', 'border-slate-200');
-      console.log('Selected Counter: 1');
     });
     btnCounter2.addEventListener('click', () => {
       selectedCounter = 2;
@@ -269,7 +268,6 @@
       btnCounter2.classList.remove('bg-slate-50', 'border-slate-200');
       btnCounter1.classList.remove('active', 'border-blue-600');
       btnCounter1.classList.add('bg-slate-50', 'border-slate-200');
-      console.log('Selected Counter: 2');
     });
     
     // Generate next token
@@ -332,13 +330,15 @@
       }
     });
     
-    // ✅ CALL NEXT
+    // ✅ CALL NEXT — Person is REMOVED from queue list → appears in Now Serving
     callNextBtn.addEventListener('click', async () => {
       try {
-        if (currentServing) {
+        // Mark previous as finished
+        if (currentServing && currentServing.id) {
           await sb.from('calls').update({ status: 'finished' }).eq('id', currentServing.id);
         }
         
+        // Get the NEXT person waiting in queue
         const { data: nextInQueue } = await sb.from('queue')
           .select('*')
           .order('position', { ascending: true })
@@ -350,7 +350,12 @@
         }
         
         const nextPerson = nextInQueue[0];
+        
+        // ✅ REMOVE from waiting queue — so they DON'T appear in the list anymore
         await sb.from('queue').delete().eq('id', nextPerson.id);
+        
+        // ✅ ADD to calls table as "Now Serving"
+        await sb.from('calls').delete().eq('service', nextPerson.service);
         
         const { data: servingRecord } = await sb.from('calls').insert({
           token: nextPerson.token,
@@ -431,10 +436,12 @@
       await sb.from('queue').delete().neq('service', '');
     });
     
-    // ✅ Load / Refresh — FIXED display
+    // ✅ Load / Refresh — Now Serving ≠ Queue List
     async function load() {
       try {
+        // Queue = ONLY people WAITING (not yet called)
         let { data: queue, error: qErr } = await sb.from('queue').select('*').order('position', { ascending: true });
+        // Serving = person CURRENTLY being called
         const { data: serving, error: sErr } = await sb.from('calls').select('*').eq('status', 'serving').limit(1);
         const { data: recent, error: rErr } = await sb.from('calls').select('*').eq('status', 'finished').order('id', { ascending: false }).limit(5);
         
@@ -465,6 +472,7 @@
         document.getElementById('loanWaiting').textContent = loanList.length;
         document.getElementById('totalWaiting').textContent = queue.length;
         
+        // ✅ "Next to Call" = FIRST person still WAITING in queue
         if (queue.length > 0) {
           document.getElementById('nextToCall').textContent = queue[0].token;
           callNextBtn.disabled = false;
@@ -473,6 +481,7 @@
           callNextBtn.disabled = true;
         }
         
+        // ✅ "Now Serving" = person from calls table (separate from queue)
         if (serving && serving.length > 0) {
           currentServing = serving[0];
           document.getElementById('nowServing').textContent = `${serving[0].token} — ${serving[0].name}`;
@@ -485,7 +494,7 @@
           callAgainBtn.disabled = true;
         }
         
-        // ✅ Build queue list — FIXED display
+        // ✅ Queue list = ONLY WAITING people — NEVER shows the one being served
         const body = document.getElementById('queueBody');
         if (queue.length === 0) {
           body.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">No customers in queue</td></tr>`;
