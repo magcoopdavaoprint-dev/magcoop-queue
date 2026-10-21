@@ -36,23 +36,87 @@
       50% { transform: scale(1.03); box-shadow: 0 0 20px 10px rgba(139, 92, 246, 0.2); }
       100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
     }
-    .option-card { transition: all 0.2s ease; cursor: pointer; }
+    .input-error { border-color: #ef4444 !important; background: #fef2f2; }
+    .store-btn { transition: all 0.2s ease; }
+    .store-btn:hover { transform: translateY(-2px); }
+    .store-btn.clicked { 
+      background: #22c55e !important; 
+      color: white !important;
+      pointer-events: none;
+    }
+    .locked { opacity: 0.5; pointer-events: none; }
+    .unlocked { opacity: 1; pointer-events: auto; transition: all 0.3s ease; }
+    .option-card { transition: all 0.2s ease; cursor: pointer; border: 2px solid #e5e7eb; }
     .option-card.selected { border-color: #8b5cf6; background: #f5f3ff; }
     .option-card:hover { transform: translateY(-2px); }
-    .input-error { border-color: #ef4444 !important; background: #fef2f2; }
   </style>
 </head>
 <body class="flex items-center justify-center p-4">
   <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 text-center">
-    <h1 class="text-3xl font-bold mb-6">
-      <span class="text-magcoop-loan">💰 MAGCOOP</span>
-    </h1>
-    <h2 class="text-xl font-semibold text-gray-700 mb-6">Join the Queue</h2>
     
-    <div id="formSection">
+    <!-- ✅ STEP 1: INSTALL APP — ONE CLICK + AUTO RETURN -->
+    <div id="installSection">
+      <img 
+        src="https://via.placeholder.com/120x160/1e1b4b/f5ce00?text=MAGCOOP+ONLINE" 
+        alt="MAGCOOP Online App" 
+        class="w-24 h-32 mx-auto mb-4 rounded-xl shadow-lg"
+      />
+      <h1 class="text-2xl font-bold text-gray-800 mb-2">MagCoop Online</h1>
+      <p class="text-red-600 font-semibold mb-2">⚠️ APP INSTALLATION REQUIRED</p>
+      <p class="text-gray-600 mb-4">Tap your phone type below — return here after installing</p>
+      
+      <!-- ✅ ANDROID -->
+      <button 
+        id="playStoreBtn"
+        class="store-btn flex items-center justify-center gap-3 bg-magcoop-yellow hover:bg-amber-400 text-black font-bold py-3 rounded-xl mb-3 w-full"
+      >
+        <span class="text-xl">▶️</span> I Use Android — Download App
+        <span id="playCheck" class="ml-auto text-sm opacity-0">✓ Done</span>
+      </button>
+      
+      <!-- ✅ IPHONE -->
+      <button 
+        id="appStoreBtn"
+        class="store-btn flex items-center justify-center gap-3 bg-magcoop-yellow hover:bg-amber-400 text-black font-bold py-3 rounded-xl mb-6 w-full"
+      >
+        <span class="text-xl">🅰️</span> I Use iPhone — Download App
+        <span id="appCheck" class="ml-auto text-sm opacity-0">✓ Done</span>
+      </button>
+      
+      <p id="statusText" class="text-sm text-gray-500 mb-4">
+        Tap your phone type above ⬆️
+      </p>
+      
+      <!-- ✅ CONFIRM CHECKBOX -->
+      <label id="confirmLabel" class="flex items-start gap-3 text-left mb-4 cursor-pointer locked">
+        <input type="checkbox" id="confirmInstall" class="mt-1 w-5 h-5 accent-magcoop-loan" disabled />
+        <span class="text-gray-400">I have installed the MAGCOOP Online App on my phone ✅</span>
+      </label>
+      
+      <!-- ✅ MAIN BUTTON -->
+      <button 
+        id="haveAppBtn"
+        class="w-full border-2 border-gray-300 bg-gray-100 text-gray-400 font-semibold py-3 rounded-xl transition cursor-not-allowed"
+        disabled
+      >
+        🔒 Confirm Installation First
+      </button>
+      
+      <p class="mt-4 text-xs text-gray-400">
+        No app installed → Cannot get a queue number
+      </p>
+    </div>
+    
+    <!-- ✅ STEP 2: QUEUE FORM — ENCODING + LOAN SELECTION RESTORED -->
+    <div id="formSection" class="hidden">
+      <button id="backBtn" class="text-left text-gray-500 hover:text-gray-700 mb-4 inline-block">
+        ← Go Back
+      </button>
+      
+      <h2 class="text-xl font-semibold text-gray-700 mb-6">Join the Queue</h2>
+      
       <label class="block text-left text-gray-600 font-medium mb-2">
-        Your Nickname Only
-        <span class="text-red-500 text-sm ml-1">(No spaces — One name only)</span>
+        Your Nickname Only <span class="text-red-500 text-sm">(No spaces — One name only)</span>
       </label>
       <input 
         type="text" 
@@ -65,7 +129,7 @@
       <label class="block text-left text-gray-600 font-medium mt-5 mb-3">Select Service Type</label>
       
       <div class="grid grid-cols-1 gap-3 mb-6">
-        <div id="optGeneral" class="option-card border-2 border-gray-200 rounded-xl p-4 text-left selected">
+        <div id="optGeneral" class="option-card rounded-xl p-4 text-left selected">
           <div class="flex items-center gap-3">
             <span class="text-xl">📋</span>
             <div>
@@ -76,7 +140,7 @@
           </div>
         </div>
         
-        <div id="optLoan" class="option-card border-2 border-gray-200 rounded-xl p-4 text-left">
+        <div id="optLoan" class="option-card rounded-xl p-4 text-left">
           <div class="flex items-center gap-3">
             <span class="text-xl">💰</span>
             <div>
@@ -90,14 +154,15 @@
       
       <button 
         id="submitBtn" 
-        class="w-full bg-magcoop-loan hover:bg-magcoop-loandark text-white text-lg font-bold py-3 rounded-xl transition pulse-btn"
+        class="w-full bg-magcoop-loan hover:bg-magcoop-loandark text-white text-lg font-bold py-3 rounded-xl transition pulse-btn flex items-center justify-center gap-2"
       >
-        ✅ Submit to Queue
+        <span>✅</span> Submit to Queue
       </button>
       
-      <p id="statusText" class="mt-3 text-xs text-gray-400">Enter nickname — no spaces please</p>
+      <p id="formStatusText" class="mt-3 text-xs text-gray-400">Enter nickname — no spaces please</p>
     </div>
     
+    <!-- ✅ STEP 3: SUCCESS SCREEN -->
     <div id="successSection" class="hidden">
       <div class="text-6xl mb-4">✅</div>
       <h3 class="text-2xl font-bold text-magcoop-loan mb-2">YOU'RE IN THE QUEUE!</h3>
@@ -112,31 +177,115 @@
       </a>
     </div>
   </div>
-
+  
   <script>
     const SUPABASE_URL = "https://jvyrnzlrklydeaevjqry.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2eXJuemxya2x5ZGVhZXZqcXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NTUzNzIsImV4cCI6MjEwNTUzMTM3Mn0.vqIiba18j22PrMy-ye6OuzBSbngwWF-TPfo3JRPGI3E";
     
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const THIS_PAGE = window.location.href;
     
-    const nicknameInput = document.getElementById('nicknameInput');
-    const submitBtn = document.getElementById('submitBtn');
+    // Sections
+    const installSection = document.getElementById('installSection');
     const formSection = document.getElementById('formSection');
     const successSection = document.getElementById('successSection');
-    const showToken = document.getElementById('showToken');
-    const showName = document.getElementById('showName');
-    const showService = document.getElementById('showService');
-    const countdownEl = document.getElementById('countdown');
-    const statusText = document.getElementById('statusText');
     
+    // Install elements
+    const playStoreBtn = document.getElementById('playStoreBtn');
+    const appStoreBtn = document.getElementById('appStoreBtn');
+    const playCheck = document.getElementById('playCheck');
+    const appCheck = document.getElementById('appCheck');
+    const statusText = document.getElementById('statusText');
+    const confirmLabel = document.getElementById('confirmLabel');
+    const confirmInstall = document.getElementById('confirmInstall');
+    const haveAppBtn = document.getElementById('haveAppBtn');
+    const backBtn = document.getElementById('backBtn');
+    
+    // Form elements
+    const nicknameInput = document.getElementById('nicknameInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const formStatusText = document.getElementById('formStatusText');
     const optGeneral = document.getElementById('optGeneral');
     const optLoan = document.getElementById('optLoan');
     const checkGeneral = document.getElementById('checkGeneral');
     const checkLoan = document.getElementById('checkLoan');
     
+    // Success elements
+    const showToken = document.getElementById('showToken');
+    const showName = document.getElementById('showName');
+    const showService = document.getElementById('showService');
+    const countdownEl = document.getElementById('countdown');
+    
+    let selectedType = null;
     let selectedService = 'Encoding';
     let selectedDept = 'Customer Service';
     
+    // ✅ Detect return from store
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted || performance.getEntriesByType('navigation')[0]?.type === 'back_forward') {
+        if (selectedType) confirmSelection();
+      }
+    });
+    
+    // ✅ Android — open Play Store
+    playStoreBtn.addEventListener('click', () => {
+      if (selectedType) return;
+      selectedType = 'android';
+      playStoreBtn.classList.add('clicked');
+      playCheck.style.opacity = '1';
+      appStoreBtn.style.opacity = '0.5';
+      window.open('https://play.google.com/store/apps/details?id=com.magcoop.online', '_blank');
+      setTimeout(confirmSelection, 800);
+    });
+    
+    // ✅ iPhone — open App Store
+    appStoreBtn.addEventListener('click', () => {
+      if (selectedType) return;
+      selectedType = 'iphone';
+      appStoreBtn.classList.add('clicked');
+      appCheck.style.opacity = '1';
+      playStoreBtn.style.opacity = '0.5';
+      window.open('https://apps.apple.com/ph/app/magcoop-online/id6757223527', '_blank');
+      setTimeout(confirmSelection, 800);
+    });
+    
+    // ✅ Unlock confirmation
+    function confirmSelection() {
+      statusText.textContent = '✅ Welcome back! Confirm below';
+      statusText.style.color = '#22c55e';
+      confirmLabel.classList.remove('locked');
+      confirmInstall.disabled = false;
+      confirmLabel.querySelector('span').classList.remove('text-gray-400');
+      confirmLabel.querySelector('span').classList.add('text-gray-700');
+    }
+    
+    // ✅ Confirm unlocks main button
+    confirmInstall.addEventListener('change', () => {
+      if (confirmInstall.checked) {
+        haveAppBtn.disabled = false;
+        haveAppBtn.classList.remove('border-gray-300', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+        haveAppBtn.classList.add('border-2', 'border-magcoop-loan', 'text-magcoop-loan', 'hover:bg-magcoop-loan', 'hover:text-white');
+        haveAppBtn.textContent = '✅ Get My Queue Number';
+      } else {
+        haveAppBtn.disabled = true;
+        haveAppBtn.classList.add('border-gray-300', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+        haveAppBtn.classList.remove('border-magcoop-loan', 'text-magcoop-loan', 'hover:bg-magcoop-loan', 'hover:text-white');
+        haveAppBtn.textContent = '🔒 Confirm Installation First';
+      }
+    });
+    
+    // ✅ Show form
+    haveAppBtn.addEventListener('click', () => {
+      if (!confirmInstall.checked) {
+        alert('⚠️ Please confirm you have installed the MAGCOOP Online App first!');
+        return;
+      }
+      installSection.classList.add('hidden');
+      formSection.classList.remove('hidden');
+      nicknameInput.focus();
+    });
+    
+    // ✅ Service selection
     function selectService(type) {
       optGeneral.classList.remove('selected');
       optLoan.classList.remove('selected');
@@ -159,39 +308,22 @@
     optGeneral.addEventListener('click', () => selectService('general'));
     optLoan.addEventListener('click', () => selectService('loan'));
     
+    // ✅ Nickname validation
     nicknameInput.addEventListener('input', () => {
       const val = nicknameInput.value;
       if (/\s/.test(val)) {
         nicknameInput.value = val.replace(/\s+/g, '');
-        statusText.textContent = '⚠️ Spaces not allowed — use one nickname only';
-        statusText.style.color = '#ea580c';
+        formStatusText.textContent = '⚠️ Spaces not allowed — use one nickname only';
+        formStatusText.style.color = '#ea580c';
         nicknameInput.classList.add('input-error');
         setTimeout(() => nicknameInput.classList.remove('input-error'), 1500);
       } else {
-        statusText.textContent = 'Looks good ✅';
-        statusText.style.color = '#22c55e';
+        formStatusText.textContent = 'Looks good ✅';
+        formStatusText.style.color = '#22c55e';
       }
     });
     
-    window.addEventListener('DOMContentLoaded', () => {
-      const params = new URLSearchParams(window.location.search);
-      const nameFromLink = params.get('name');
-      const serviceFromLink = params.get('service');
-      
-      if (nameFromLink) {
-        const cleaned = decodeURIComponent(nameFromLink).replace(/\s+/g, '');
-        nicknameInput.value = cleaned;
-        statusText.textContent = 'Name loaded & cleaned ✅';
-        statusText.style.color = '#22c55e';
-      }
-      
-      if (serviceFromLink === 'loan') selectService('loan');
-      else selectService('general');
-      
-      nicknameInput.focus();
-    });
-    
-    // ✅ Fully separate token sequences: Loan = L001+, Encoding = E001+
+    // ✅ Get next token — separate E and L sequences
     async function getNextToken() {
       const [{ data: queueData }, { data: callsData }] = await Promise.all([
         sb.from('queue').select('token, service'),
@@ -199,9 +331,7 @@
       ]);
       
       const allRecords = [...(queueData || []), ...(callsData || [])];
-      
-      let maxLoan = 0;
-      let maxEncoding = 0;
+      let maxLoan = 0, maxEncoding = 0;
       
       allRecords.forEach(row => {
         let num;
@@ -211,52 +341,43 @@
         } else if (row.token?.startsWith('L')) {
           num = parseInt(row.token.slice(1), 10);
           if (!isNaN(num) && num > maxLoan) maxLoan = num;
-        } else if (row.token) {
-          num = parseInt(row.token.replace(/^.*-/, ''), 10);
-          if (isNaN(num) || num <= 0) return;
-          if (row.service === 'MAGCOOP Loan') {
-            if (num > maxLoan) maxLoan = num;
-          } else {
-            if (num > maxEncoding) maxEncoding = num;
-          }
         }
       });
       
-      if (selectedService === 'MAGCOOP Loan') {
-        return `L${String(maxLoan + 1).padStart(3, '0')}`;
-      } else {
-        return `E${String(maxEncoding + 1).padStart(3, '0')}`;
-      }
+      return selectedService === 'MAGCOOP Loan'
+        ? `L${String(maxLoan + 1).padStart(3, '0')}`
+        : `E${String(maxEncoding + 1).padStart(3, '0')}`;
     }
     
+    // ✅ Submit to queue
     async function submitToQueue() {
       let nickname = nicknameInput.value.trim();
       
       if (/\s/.test(nickname)) {
-        statusText.textContent = '❌ Spaces not allowed! Enter one nickname only';
-        statusText.style.color = '#ef4444';
+        formStatusText.textContent = '❌ Spaces not allowed! Enter one nickname only';
+        formStatusText.style.color = '#ef4444';
         nicknameInput.classList.add('input-error');
         nicknameInput.focus();
         return;
       }
       
       if (!nickname) {
-        statusText.textContent = '⚠️ Enter your nickname first!';
-        statusText.style.color = '#ea580c';
+        formStatusText.textContent = '⚠️ Enter your nickname first!';
+        formStatusText.style.color = '#ea580c';
         nicknameInput.focus();
         return;
       }
       
       if (nickname.length > 20) {
-        statusText.textContent = '❌ Nickname too long — keep it short';
-        statusText.style.color = '#ef4444';
+        formStatusText.textContent = '❌ Nickname too long — keep it short';
+        formStatusText.style.color = '#ef4444';
         return;
       }
       
       submitBtn.disabled = true;
       submitBtn.textContent = 'Submitting...';
-      statusText.textContent = 'Saving to queue...';
-      statusText.style.color = 'inherit';
+      formStatusText.textContent = 'Saving to queue...';
+      formStatusText.style.color = 'inherit';
       
       try {
         const token = await getNextToken();
@@ -275,6 +396,7 @@
         showToken.textContent = token;
         showName.textContent = nickname.toUpperCase();
         showService.textContent = selectedService;
+        
         formSection.classList.add('hidden');
         successSection.classList.remove('hidden');
         
@@ -290,12 +412,48 @@
         }, 1000);
         
       } catch (err) {
-        statusText.textContent = '❌ ' + err.message;
-        statusText.style.color = '#ef4444';
+        formStatusText.textContent = '❌ ' + err.message;
+        formStatusText.style.color = '#ef4444';
         submitBtn.disabled = false;
-        submitBtn.textContent = '✅ Submit to Queue';
+        submitBtn.innerHTML = '<span>✅</span> Submit to Queue';
       }
     }
+    
+    // ✅ Back resets everything
+    backBtn.addEventListener('click', () => {
+      formSection.classList.add('hidden');
+      installSection.classList.remove('hidden');
+      
+      selectedType = null;
+      playStoreBtn.classList.remove('clicked');
+      appStoreBtn.classList.remove('clicked');
+      playCheck.style.opacity = '0';
+      appCheck.style.opacity = '0';
+      playStoreBtn.style.opacity = '1';
+      appStoreBtn.style.opacity = '1';
+      
+      statusText.textContent = 'Tap your phone type above ⬆️';
+      statusText.style.color = '';
+      
+      confirmInstall.checked = false;
+      confirmInstall.disabled = true;
+      confirmLabel.classList.add('locked');
+      confirmLabel.querySelector('span').classList.add('text-gray-400');
+      confirmLabel.querySelector('span').classList.remove('text-gray-700');
+      
+      haveAppBtn.disabled = true;
+      haveAppBtn.classList.add('border-gray-300', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      haveAppBtn.classList.remove('border-magcoop-loan', 'text-magcoop-loan', 'hover:bg-magcoop-loan', 'hover:text-white');
+      haveAppBtn.textContent = '🔒 Confirm Installation First';
+      
+      // Reset service selection
+      selectedService = 'Encoding';
+      selectedDept = 'Customer Service';
+      optGeneral.classList.add('selected');
+      optLoan.classList.remove('selected');
+      checkGeneral.classList.remove('hidden');
+      checkLoan.classList.add('hidden');
+    });
     
     submitBtn.addEventListener('click', submitToQueue);
     nicknameInput.addEventListener('keydown', e => e.key === 'Enter' && submitToQueue());
