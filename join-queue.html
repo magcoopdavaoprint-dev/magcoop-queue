@@ -69,15 +69,16 @@
     
     <div id="formSection">
       <label class="block text-left text-gray-600 font-medium mb-2">
-        Your Nickname Only
-        <span class="text-red-500 text-sm ml-1">(No spaces — One name only)</span>
+        Your Nickname
+        <span class="text-red-500 text-sm ml-1">(Max 7 letters — No spaces)</span>
       </label>
       <input 
         type="text" 
         id="nicknameInput" 
-        placeholder="e.g. Roland, not Roland Pogi" 
+        placeholder="7 Letters lang Ma'am/Sir" 
         class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-lg focus:border-magcoop-loan focus:outline-none"
         autocomplete="nickname"
+        maxlength="7"
       />
       
       <label class="block text-left text-gray-600 font-medium mt-5 mb-3">Select Service Type</label>
@@ -114,7 +115,7 @@
         ✅ Submit to Queue
       </button>
       
-      <p id="statusText" class="mt-3 text-xs text-gray-400">Enter nickname — no spaces please</p>
+      <p id="statusText" class="mt-3 text-xs text-gray-400">Enter nickname — max 7 letters, no spaces</p>
     </div>
     
     <!-- Discount Confirmation Dialog — Encoding Only -->
@@ -300,16 +301,29 @@
     optLoan.addEventListener('click', () => selectService('loan'));
     
     nicknameInput.addEventListener('input', () => {
-      const val = nicknameInput.value;
+      let val = nicknameInput.value;
+      // Remove spaces
       if (/\s/.test(val)) {
-        nicknameInput.value = val.replace(/\s+/g, '');
-        statusText.textContent = '⚠️ Spaces not allowed — use one nickname only';
+        val = val.replace(/\s+/g, '');
+        nicknameInput.value = val;
+        statusText.textContent = '⚠️ No spaces allowed';
         statusText.style.color = '#ea580c';
         nicknameInput.classList.add('input-error');
         setTimeout(() => nicknameInput.classList.remove('input-error'), 1500);
-      } else {
+      }
+      // Check length
+      if (val.length > 7) {
+        nicknameInput.value = val.slice(0, 7);
+        statusText.textContent = '❌ Max 7 letters only';
+        statusText.style.color = '#ef4444';
+        nicknameInput.classList.add('input-error');
+        setTimeout(() => nicknameInput.classList.remove('input-error'), 1500);
+      } else if (val.length > 0 && val.length <= 7) {
         statusText.textContent = 'Looks good ✅';
         statusText.style.color = '#22c55e';
+      } else {
+        statusText.textContent = 'Enter nickname — max 7 letters, no spaces';
+        statusText.style.color = '#9ca3af';
       }
     });
     
