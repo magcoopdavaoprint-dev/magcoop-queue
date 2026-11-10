@@ -126,7 +126,6 @@
         <p class="text-gray-700 mb-1">Your Encoding service qualifies for</p>
         <p class="text-3xl font-bold text-magcoop-green mb-4">12% DISCOUNT</p>
         
-        <!-- Step-by-Step Guide — Always Visible -->
         <div class="text-left mb-4">
           <div class="bg-gray-50 rounded-xl p-4">
             <p class="font-semibold text-gray-800 mb-2">Step 1: Choose & Install</p>
@@ -146,14 +145,13 @@
             <p class="text-sm text-gray-600 mb-4">Open the app → Tap "Sign in with Google" → Complete registration</p>
             
             <p class="font-semibold text-gray-800 mb-2">Step 3: Return & Proceed</p>
-            <p class="text-sm text-gray-600">Come back here → Check the box below → Click "Claim & Proceed" to get your queue number</p>
+            <p class="text-sm text-gray-600">Come back here → Check the box below → Click "Claim & Proceed"</p>
           </div>
         </div>
         
-        <!-- Checkbox -->
         <label class="flex items-start gap-2 mb-5 text-left cursor-pointer">
           <input type="checkbox" id="appInstalled" class="mt-1 w-4 h-4 accent-magcoop-green" />
-          <span class="text-sm text-gray-700">I have already installed the MAGCOOP app and created my account</span>
+          <span class="text-sm text-gray-700">I have installed the app and created my account ✅</span>
         </label>
         
         <div class="flex gap-3">
@@ -173,34 +171,32 @@
         <div class="text-4xl mb-3">📝</div>
         <h3 class="text-xl font-bold text-magcoop-loan mb-4">Ready to Join Queue</h3>
         
-        <!-- Step-by-Step Guide — Always Visible -->
         <div class="text-left mb-4">
           <div class="bg-gray-50 rounded-xl p-4">
             <p class="font-semibold text-gray-800 mb-2">Step 1: Choose & Install</p>
-            <p class="text-sm text-gray-600 mb-3">Select PlayStore or AppStore to download the MAGCOOP app</p>
+            <p class="text-sm text-gray-600 mb-3">Download the MAGCOOP app from the store</p>
             <div class="flex flex-col gap-2 mb-4">
-              <a href="https://play.google.com/store/apps/details?id=com.magcoop.app" target="_blank" rel="noopener"
+              <a href="https://play.google.com/store/apps/details?id=com.magcoop.online" target="_blank" rel="noopener"
                  class="store-link bg-green-500 hover:bg-green-600 text-white">
-                ▶️ Download from Google PlayStore
+                ▶️ Google PlayStore
               </a>
-              <a href="https://apps.apple.com/ph/app/magcoop/id1234567890" target="_blank" rel="noopener"
+              <a href="https://apps.apple.com/ph/app/magcoop-online/id6757223527" target="_blank" rel="noopener"
                  class="store-link bg-gray-800 hover:bg-black text-white">
-                🍎 Download from App Store
+                🍎 App Store
               </a>
             </div>
             
             <p class="font-semibold text-gray-800 mb-2">Step 2: Create Your Account</p>
-            <p class="text-sm text-gray-600 mb-4">Open the app → Tap "Sign in with Google" → Complete registration</p>
+            <p class="text-sm text-gray-600 mb-4">Open the app → Sign in with Google → Register</p>
             
             <p class="font-semibold text-gray-800 mb-2">Step 3: Return & Proceed</p>
-            <p class="text-sm text-gray-600">Come back here → Check the box below → Click "Proceed" to get your queue number</p>
+            <p class="text-sm text-gray-600">Come back → Check box → Click "Proceed"</p>
           </div>
         </div>
         
-        <!-- Checkbox -->
         <label class="flex items-start gap-2 mb-5 text-left cursor-pointer">
           <input type="checkbox" id="appInstalledLoan" class="mt-1 w-4 h-4 accent-magcoop-loan" />
-          <span class="text-sm text-gray-700">I have already installed the MAGCOOP app and created my account</span>
+          <span class="text-sm text-gray-700">I have installed the app and created my account ✅</span>
         </label>
         
         <div class="flex gap-3">
@@ -236,6 +232,8 @@
     
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
+    let isSubmitting = false; // ✅ Prevent dual submission
+    
     const nicknameInput = document.getElementById('nicknameInput');
     const submitBtn = document.getElementById('submitBtn');
     const formSection = document.getElementById('formSection');
@@ -266,19 +264,20 @@
     let selectedService = 'Encoding';
     let selectedDept = 'Customer Service';
     
-    // Enable/disable Proceed button — Encoding
+    // Enable/disable buttons
     appInstalled.addEventListener('change', () => {
-      confirmBtn.disabled = !appInstalled.checked;
-      confirmBtn.classList.toggle('btn-disabled', !appInstalled.checked);
+      confirmBtn.disabled = !appInstalled.checked || isSubmitting;
+      confirmBtn.classList.toggle('btn-disabled', !appInstalled.checked || isSubmitting);
     });
     
-    // Enable/disable Proceed button — Loan
     appInstalledLoan.addEventListener('change', () => {
-      confirmBtnLoan.disabled = !appInstalledLoan.checked;
-      confirmBtnLoan.classList.toggle('btn-disabled', !appInstalledLoan.checked);
+      confirmBtnLoan.disabled = !appInstalledLoan.checked || isSubmitting;
+      confirmBtnLoan.classList.toggle('btn-disabled', !appInstalledLoan.checked || isSubmitting);
     });
     
     function selectService(type) {
+      if (isSubmitting) return;
+      
       optGeneral.classList.remove('selected');
       optLoan.classList.remove('selected');
       checkGeneral.classList.add('hidden');
@@ -301,8 +300,9 @@
     optLoan.addEventListener('click', () => selectService('loan'));
     
     nicknameInput.addEventListener('input', () => {
+      if (isSubmitting) return;
+      
       let val = nicknameInput.value;
-      // Remove spaces
       if (/\s/.test(val)) {
         val = val.replace(/\s+/g, '');
         nicknameInput.value = val;
@@ -311,7 +311,6 @@
         nicknameInput.classList.add('input-error');
         setTimeout(() => nicknameInput.classList.remove('input-error'), 1500);
       }
-      // Check length
       if (val.length > 7) {
         nicknameInput.value = val.slice(0, 7);
         statusText.textContent = '❌ Max 7 letters only';
@@ -330,7 +329,8 @@
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       const nameFromLink = params.get('name');
-      const serviceFromLink = params.get('service');
+      const serviceFromLink =
+ params.get('service');
       
       if (nameFromLink) {
         const cleaned = decodeURIComponent(nameFromLink).replace(/\s+/g, '');
