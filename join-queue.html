@@ -36,7 +36,7 @@
       50% { transform: scale(1.03); box-shadow: 0 0 20px 10px rgba(139, 92, 246, 0.2); }
       100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
     }
-    .option-card { transition: all 0.2s ease; cursor: pointer; }
+    .option-card { transition: all 0.2s ease; cursor: pointer; border: 2px solid #e5e7eb; }
     .option-card.selected { border-color: #8b5cf6; background: #f5f3ff; }
     .option-card:hover { transform: translateY(-2px); }
     .input-error { border-color: #ef4444 !important; background: #fef2f2; }
@@ -48,15 +48,28 @@
       padding: 1rem;
     }
     .btn-disabled {
-      opacity: 0.5;
+      opacity: 0.6;
       cursor: not-allowed;
       transform: none !important;
       box-shadow: none !important;
+      pointer-events: none;
     }
     .store-link {
       display: flex; align-items: center; justify-content: center;
       gap: 0.5rem; padding: 0.6rem 1rem; border-radius: 0.75rem;
       font-weight: 600; transition: all 0.2s ease;
+    }
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -84,7 +97,8 @@
       <label class="block text-left text-gray-600 font-medium mt-5 mb-3">Select Service Type</label>
       
       <div class="grid grid-cols-1 gap-3 mb-6">
-        <div id="optGeneral" class="option-card border-2 border-gray-200 rounded-xl p-4 text-left selected">
+        <!-- Encoding -->
+        <div id="optGeneral" class="option-card rounded-xl p-4 text-left selected">
           <div class="flex items-center gap-3">
             <span class="text-xl">📋</span>
             <div>
@@ -96,7 +110,8 @@
           </div>
         </div>
         
-        <div id="optLoan" class="option-card border-2 border-gray-200 rounded-xl p-4 text-left">
+        <!-- Loan -->
+        <div id="optLoan" class="option-card rounded-xl p-4 text-left">
           <div class="flex items-center gap-3">
             <span class="text-xl">💰</span>
             <div>
@@ -118,8 +133,8 @@
       <p id="statusText" class="mt-3 text-xs text-gray-400">Enter nickname — max 7 letters, no spaces</p>
     </div>
     
-    <!-- Discount Confirmation Dialog — Encoding Only -->
-    <div id="confirmDialog" class="hidden dialog-backdrop">
+    <!-- Discount Confirmation Dialog — Encoding -->
+    <div id="confirmDialog" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
         <div class="text-4xl mb-3">🎉</div>
         <h3 class="text-xl font-bold text-magcoop-green mb-2">Special Offer! To all Seafarer</h3>
@@ -142,10 +157,10 @@
             </div>
             
             <p class="font-semibold text-gray-800 mb-2">Step 2: Create Your Account</p>
-            <p class="text-sm text-gray-600 mb-4">Open the app → Tap "Sign in with Google" → Complete registration</p>
+            <p class="text-sm text-gray-600 mb-4">Open the app → Sign in with Google → Register</p>
             
             <p class="font-semibold text-gray-800 mb-2">Step 3: Return & Proceed</p>
-            <p class="text-sm text-gray-600">Come back here → Check the box below → Click "Claim & Proceed"</p>
+            <p class="text-sm text-gray-600">Come back → Check box → Click "Claim & Proceed"</p>
           </div>
         </div>
         
@@ -165,8 +180,8 @@
       </div>
     </div>
     
-    <!-- Confirmation Dialog — Loan Service -->
-    <div id="confirmDialogLoan" class="hidden dialog-backdrop">
+    <!-- Confirmation Dialog — Loan -->
+    <div id="confirmDialogLoan" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
         <div class="text-4xl mb-3">📝</div>
         <h3 class="text-xl font-bold text-magcoop-loan mb-4">Ready to Join Queue</h3>
@@ -210,6 +225,7 @@
       </div>
     </div>
     
+    <!-- Success Section -->
     <div id="successSection" class="hidden">
       <div class="text-6xl mb-4">✅</div>
       <h3 class="text-2xl font-bold text-magcoop-loan mb-2">YOU'RE IN THE QUEUE!</h3>
@@ -232,7 +248,7 @@
     
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
-    let isSubmitting = false; // ✅ Prevent dual submission
+    let isSubmitting = false; // 🔒 Global lock — NO duplicate clicks
     
     const nicknameInput = document.getElementById('nicknameInput');
     const submitBtn = document.getElementById('submitBtn');
@@ -263,8 +279,27 @@
     
     let selectedService = 'Encoding';
     let selectedDept = 'Customer Service';
+    let currentNickname = '';
     
-    // Enable/disable buttons
+    // Store original button texts
+    const submitBtnText = submitBtn.innerHTML;
+    const confirmBtnText = confirmBtn.innerHTML;
+    const confirmBtnLoanText = confirmBtnLoan.innerHTML;
+    
+    // Helper: Set loading state
+    function setLoading(btn, originalText, isLoading) {
+      if (isLoading) {
+        btn.disabled = true;
+        btn.classList.add('btn-disabled');
+        btn.innerHTML = `<span class="spinner"></span> Processing...`;
+      } else {
+        btn.disabled = false;
+        btn.classList.remove('btn-disabled');
+        btn.innerHTML = originalText;
+      }
+    }
+    
+    // Enable/disable confirm buttons
     appInstalled.addEventListener('change', () => {
       confirmBtn.disabled = !appInstalled.checked || isSubmitting;
       confirmBtn.classList.toggle('btn-disabled', !appInstalled.checked || isSubmitting);
